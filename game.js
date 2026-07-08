@@ -1,182 +1,292 @@
 import { db } from './firebase-config.js';
 import {
-  ref, set, get, update, onValue, push, remove, off
+  ref, set, get, update, onValue, remove, off
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 // ===== カード定義 =====
 const CARDS = {
-  SHOOT_1: { id: 'SHOOT_1', type: 'shoot', level: 1, icon: '⚽', name: 'シュート', label: 'Lv.1' },
-  SHOOT_2: { id: 'SHOOT_2', type: 'shoot', level: 2, icon: '⚽', name: 'シュート', label: 'Lv.2' },
-  SHOOT_3: { id: 'SHOOT_3', type: 'shoot', level: 3, icon: '⚽', name: 'シュート', label: 'Lv.3' },
-  SHOOT_4: { id: 'SHOOT_4', type: 'shoot', level: 4, icon: '⚽', name: 'シュート', label: 'Lv.4' },
-  BLOCK_1: { id: 'BLOCK_1', type: 'block', level: 1, icon: '🛡️', name: 'ブロック', label: 'Lv.1' },
-  BLOCK_2: { id: 'BLOCK_2', type: 'block', level: 2, icon: '🛡️', name: 'ブロック', label: 'Lv.2' },
-  BLOCK_3: { id: 'BLOCK_3', type: 'block', level: 3, icon: '🛡️', name: 'ブロック', label: 'Lv.3' },
-  BLOCK_4: { id: 'BLOCK_4', type: 'block', level: 4, icon: '🛡️', name: 'ブロック', label: 'Lv.4' },
-  DRIBBLE_A: { id: 'DRIBBLE_A', type: 'dribble', level: null, icon: '🌀', name: 'ドリブル', label: '' },
-  DRIBBLE_B: { id: 'DRIBBLE_B', type: 'dribble', level: null, icon: '🌀', name: 'ドリブル', label: '' },
+  SHOOT_1:  { id:'SHOOT_1',  type:'shoot',   level:1, icon:'⚽', name:'シュート', label:'Lv.1' },
+  SHOOT_2:  { id:'SHOOT_2',  type:'shoot',   level:2, icon:'⚽', name:'シュート', label:'Lv.2' },
+  SHOOT_3:  { id:'SHOOT_3',  type:'shoot',   level:3, icon:'⚽', name:'シュート', label:'Lv.3' },
+  SHOOT_4:  { id:'SHOOT_4',  type:'shoot',   level:4, icon:'⚽', name:'シュート', label:'Lv.4' },
+  BLOCK_1:  { id:'BLOCK_1',  type:'block',   level:1, icon:'🛡️', name:'ブロック', label:'Lv.1' },
+  BLOCK_2:  { id:'BLOCK_2',  type:'block',   level:2, icon:'🛡️', name:'ブロック', label:'Lv.2' },
+  BLOCK_3:  { id:'BLOCK_3',  type:'block',   level:3, icon:'🛡️', name:'ブロック', label:'Lv.3' },
+  BLOCK_4:  { id:'BLOCK_4',  type:'block',   level:4, icon:'🛡️', name:'ブロック', label:'Lv.4' },
+  DRIBBLE_A:{ id:'DRIBBLE_A',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'' },
+  DRIBBLE_B:{ id:'DRIBBLE_B',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'' },
 };
 
 const INITIAL_DECK = Object.keys(CARDS);
+const AVATARS = ['⚽','🦁','🐯','🔥','⭐','🌀','🎯','🏆','🦊','🛡️'];
 
-// ===== 状態 =====
-let myRole = null;       // 'player1' or 'player2'
-let roomId = null;
-let gameState = null;
+// ===== グローバル状態 =====
+let selectedAccount = null;
+let myRole         = null;
+let roomId         = null;
+let gameState      = null;
 let mySelectedCard = null;
-let unsubscribers = [];
-let yellowUsed = false;
-let redUsed = false;
-let waitingForOpponent = false;
+let unsubscribers  = [];
+let pkState        = { round: 0 };
 
-// ===== DOM参照 =====
-const $ = (id) => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
-// ===== ユーティリティ =====
+// =========================================
+//  アカウント管理
+// =========================================
+function loadAccounts() {
+  try {
+    const stored = localStorage.getItem('gkb_accounts');
+    if (stored) return JSON.parse(stored);
+  } catch(e) {}
+  const defaults = Array.from({ length: 10 }, (_, i) => ({
+    id: i + 1,
+    name: `プレイヤー${i + 1}`,
+    avatar: AVATARS[i],
+  }));
+  localStorage.setItem('gkb_accounts', JSON.stringify(defaults));
+  return defaults;
+}
+
+function persistAccounts(accounts) {
+  localStorage.setItem('gkb_accounts', JSON.stringify(accounts));
+}
+
+function updateAccountName(id, newName) {
+  const accounts = loadAccounts();
+  const target = accounts.find(a => a.id === id);
+  if (target) { target.name = newName; persistAccounts(accounts); }
+}
+
+// =========================================
+//  アカウント画面
+// =========================================
+function renderAccountScreen() {
+  const grid = $('account-grid');
+  grid.innerHTML = '';
+  loadAccounts().forEach(account => {
+    const card = createAccountCard(account);
+    grid.appendChild(card);
+  });
+}
+
+function createAccountCard(account) {
+  const card = document.createElement('div');
+  card.className = 'account-card';
+  card.dataset.id = account.id;
+  card.innerHTML = `
+    <div class="account-avatar">${account.avatar}</div>
+    <div class="account-name" id="aname-${account.id}">${account.name}</div>
+    <button class="account-edit-btn">✏️ 編集</button>
+  `;
+
+  // カードタップ → アカウント選択
+  card.addEventListener('click', e => {
+    if (card.classList.contains('editing')) return;
+    if (e.target.closest('.account-edit-btn')) return;
+    onSelectAccount(account);
+  });
+
+  // 編集ボタン
+  card.querySelector('.account-edit-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    enterEditMode(card, account);
+  });
+
+  return card;
+}
+
+function enterEditMode(card, account) {
+  card.classList.add('editing');
+
+  const nameEl  = card.querySelector(`#aname-${account.id}`);
+  const editBtn = card.querySelector('.account-edit-btn');
+
+  // テキストをインプットに差し替え
+  nameEl.innerHTML =
+    `<input class="account-name-input" id="ainput-${account.id}"
+            type="text" maxlength="8" value="${account.name}" />`;
+
+  // ボタンを保存/キャンセルに差し替え
+  editBtn.style.display = 'none';
+
+  const actions = document.createElement('div');
+  actions.className = 'edit-actions';
+  actions.innerHTML = `
+    <button class="btn-save-acc">✅</button>
+    <button class="btn-cancel-acc">❌</button>
+  `;
+  card.appendChild(actions);
+
+  const input = $(`ainput-${account.id}`);
+  input.focus();
+  input.select();
+
+  // Enter キーで保存
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') actions.querySelector('.btn-save-acc').click();
+    if (e.key === 'Escape') actions.querySelector('.btn-cancel-acc').click();
+  });
+
+  actions.addEventListener('click', e => {
+    e.stopPropagation();
+    if (e.target.classList.contains('btn-save-acc')) {
+      const val = input.value.trim() || account.name;
+      account.name = val;           // ローカル参照も更新
+      updateAccountName(account.id, val);
+      renderAccountScreen();
+    }
+    if (e.target.classList.contains('btn-cancel-acc')) {
+      renderAccountScreen();
+    }
+  });
+}
+
+function onSelectAccount(account) {
+  selectedAccount = account;
+
+  // ロビーバナー更新
+  $('selected-account-banner').innerHTML = `
+    <span class="banner-avatar">${account.avatar}</span>
+    <span class="banner-name">${account.name}</span>
+  `;
+  // ロビーをリセットして表示
+  $('btn-create').disabled = false;
+  $('room-info').classList.add('hidden');
+  $('lobby-error').classList.add('hidden');
+  $('input-room-id').value = '';
+  showScreen('screen-lobby');
+}
+
+// =========================================
+//  ユーティリティ
+// =========================================
+
+// ★ ルームIDを数字2桁（10〜99）に変更
 function genRoomId() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  return String(Math.floor(Math.random() * 90) + 10);
 }
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-// 三すくみ + 数値比較でターン勝敗を返す
-// returns: 'player1' | 'player2' | 'draw'
 function judgeRound(c1id, c2id, yellowTarget) {
-  const c1 = CARDS[c1id];
-  const c2 = CARDS[c2id];
-
-  // イエローカード処理
-  if (yellowTarget === 'player2') {
-    // player2のカードを無効化 → player1勝ち（得点なし扱いではなく引き分け）
-    return 'draw_yellow';
-  }
-  if (yellowTarget === 'player1') {
-    return 'draw_yellow';
-  }
-
+  if (yellowTarget) return 'draw_yellow';
+  const c1 = CARDS[c1id], c2 = CARDS[c2id];
   if (c1.type === c2.type) {
-    // 同種カード
     if (c1.type === 'shoot') {
       if (c1.level > c2.level) return 'player1';
       if (c1.level < c2.level) return 'player2';
-      return 'draw';
     }
-    return 'draw'; // block同士, dribble同士
+    return 'draw';
   }
-
-  // 三すくみ: shoot > dribble, dribble > block, block > shoot
-  const wins = {
-    shoot:   'dribble',
-    dribble: 'block',
-    block:   'shoot',
-  };
-  if (wins[c1.type] === c2.type) return 'player1';
-  if (wins[c2.type] === c1.type) return 'player2';
+  const beats = { shoot:'dribble', dribble:'block', block:'shoot' };
+  if (beats[c1.type] === c2.type) return 'player1';
+  if (beats[c2.type] === c1.type) return 'player2';
   return 'draw';
 }
 
 function getCommentary(result, myRole, c1id, c2id) {
-  const c1 = CARDS[c1id];
-  const c2 = CARDS[c2id];
-  const winner = result === myRole ? 'あなた' : result === 'draw' ? null : '相手';
-
   if (result === 'draw_yellow') return '🟡 イエローカード発動！このターンは得点なし！';
-  if (result === 'draw') return '🤝 引き分け！ 得点なし';
-
-  // 実況パターン
-  const myCard = myRole === 'player1' ? c1 : c2;
-  const oppCard = myRole === 'player1' ? c2 : c1;
-
+  if (result === 'draw')        return '🤝 引き分け！ 得点なし';
+  const c1 = CARDS[c1id], c2 = CARDS[c2id];
+  const my  = myRole === 'player1' ? c1 : c2;
+  const opp = myRole === 'player1' ? c2 : c1;
   if (result === myRole) {
-    if (myCard.type === 'shoot' && oppCard.type === 'dribble') return '⚽ ゴーール！ シュートが決まった！';
-    if (myCard.type === 'dribble' && oppCard.type === 'block') return '🌀 抜いた！チャンス！ あなたの得点！';
-    if (myCard.type === 'block' && oppCard.type === 'shoot') return '🛡️ ナイスセーブ！ 守り切った！';
-    if (myCard.type === 'shoot') return `⚽ シュート(${myCard.level}) が勝った！ゴール！`;
-    return `${myCard.icon} あなたの勝ち！`;
+    if (my.type==='shoot'   && opp.type==='dribble') return '⚽ ゴーール！ シュートが決まった！';
+    if (my.type==='dribble' && opp.type==='block')   return '🌀 抜いた！チャンス！ あなたの得点！';
+    if (my.type==='block'   && opp.type==='shoot')   return '🛡️ ナイスセーブ！ 守り切った！';
+    if (my.type==='shoot') return `⚽ シュート(${my.level}) が勝った！ゴール！`;
+    return `${my.icon} あなたの勝ち！`;
   } else {
-    if (oppCard.type === 'shoot' && myCard.type === 'dribble') return '⚽ 相手ゴーール！ シュートを止められなかった！';
-    if (oppCard.type === 'dribble' && myCard.type === 'block') return '🌀 かわされた！ 相手の得点！';
-    if (oppCard.type === 'block' && myCard.type === 'shoot') return '🛡️ 相手ナイスセーブ！ シュートが止められた！';
-    if (oppCard.type === 'shoot') return `⚽ 相手シュート(${oppCard.level}) が決まった！`;
-    return `${oppCard.icon} 相手の勝ち！`;
+    if (opp.type==='shoot'   && my.type==='dribble') return '⚽ 相手ゴーール！ 止められなかった！';
+    if (opp.type==='dribble' && my.type==='block')   return '🌀 かわされた！ 相手の得点！';
+    if (opp.type==='block'   && my.type==='shoot')   return '🛡️ 相手ナイスセーブ！ 止められた！';
+    if (opp.type==='shoot') return `⚽ 相手シュート(${opp.level}) が決まった！`;
+    return `${opp.icon} 相手の勝ち！`;
   }
 }
 
-// ===== 画面切替 =====
+// =========================================
+//  画面切替
+// =========================================
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const s = $(id);
-  s.classList.add('active');
-  s.style.display = 'flex';
+  $(id).classList.add('active');
 }
 
-// ===== ロビー処理 =====
+function cleanupListeners() {
+  unsubscribers.forEach(fn => { try { fn(); } catch(e){} });
+  unsubscribers = [];
+}
+
+// =========================================
+//  ロビー
+// =========================================
+$('btn-back-account').addEventListener('click', async () => {
+  // 作成中のルームがあれば削除
+  if (roomId && myRole === 'player1') {
+    try { await remove(ref(db, `rooms/${roomId}`)); } catch(e){}
+  }
+  cleanupListeners();
+  myRole = roomId = gameState = mySelectedCard = null;
+  showScreen('screen-account');
+});
+
 $('btn-create').addEventListener('click', async () => {
+  if (!selectedAccount) return;
   roomId = genRoomId();
   myRole = 'player1';
 
-  const roomRef = ref(db, `rooms/${roomId}`);
-  await set(roomRef, {
+  await set(ref(db, `rooms/${roomId}`), {
     status: 'waiting',
-    player1: { hand: INITIAL_DECK, score: 0, ready: false, yellowUsed: false, redUsed: false },
+    player1: {
+      hand: INITIAL_DECK, score: 0, ready: false,
+      yellowUsed: false, redUsed: false,
+      name: selectedAccount.name, avatar: selectedAccount.avatar,
+    },
     player2: null,
     turn: 1,
     turnPhase: 'select',
     scores: { player1: 0, player2: 0 },
-    history: [],
   });
 
   $('display-room-id').textContent = roomId;
   $('room-info').classList.remove('hidden');
   $('btn-create').disabled = true;
 
-  // 相手参加を待つ
-  const unsub = onValue(ref(db, `rooms/${roomId}/status`), (snap) => {
+  const statusRef = ref(db, `rooms/${roomId}/status`);
+  const unsub = onValue(statusRef, snap => {
     if (snap.val() === 'playing') {
-      off(ref(db, `rooms/${roomId}/status`));
+      off(statusRef);
       startGame();
     }
   });
-  unsubscribers.push(unsub);
+  unsubscribers.push(() => off(statusRef));
 });
 
 $('btn-join').addEventListener('click', async () => {
-  const inputId = $('input-room-id').value.trim().toUpperCase();
-  if (!inputId || inputId.length < 4) {
-    showError('ルームIDを入力してください');
+  if (!selectedAccount) return;
+  const inputId = $('input-room-id').value.trim();
+
+  if (!/^\d{2}$/.test(inputId)) {
+    showError('2桁の数字を入力してください（例：42）');
     return;
   }
 
-  const roomRef = ref(db, `rooms/${inputId}`);
-  const snap = await get(roomRef);
-
-  if (!snap.exists()) {
-    showError('ルームが見つかりません');
-    return;
-  }
-  const data = snap.val();
-  if (data.status !== 'waiting') {
-    showError('このルームはすでに開始または終了しています');
-    return;
-  }
+  const snap = await get(ref(db, `rooms/${inputId}`));
+  if (!snap.exists()) { showError('ルームが見つかりません'); return; }
+  if (snap.val().status !== 'waiting') { showError('このルームはすでに開始済みです'); return; }
 
   roomId = inputId;
   myRole = 'player2';
 
-  await update(ref(db, `rooms/${roomId}`), {
-    'player2/hand': INITIAL_DECK,
-    'player2/score': 0,
-    'player2/ready': false,
-    'player2/yellowUsed': false,
-    'player2/redUsed': false,
-    'status': 'playing',
+  await update(ref(db), {
+    [`rooms/${roomId}/player2/hand`]:        INITIAL_DECK,
+    [`rooms/${roomId}/player2/score`]:       0,
+    [`rooms/${roomId}/player2/ready`]:       false,
+    [`rooms/${roomId}/player2/yellowUsed`]:  false,
+    [`rooms/${roomId}/player2/redUsed`]:     false,
+    [`rooms/${roomId}/player2/name`]:        selectedAccount.name,
+    [`rooms/${roomId}/player2/avatar`]:      selectedAccount.avatar,
+    [`rooms/${roomId}/status`]:              'playing',
   });
 
   startGame();
@@ -189,57 +299,55 @@ function showError(msg) {
   setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
-// ===== ゲーム開始 =====
+// =========================================
+//  ゲーム開始
+// =========================================
 function startGame() {
-  yellowUsed = false;
-  redUsed = false;
   mySelectedCard = null;
   showScreen('screen-game');
-  renderOptionButtons();
+  $('option-area').classList.add('hidden');
 
-  // Firebase購読
   const gameRef = ref(db, `rooms/${roomId}`);
-  const unsub = onValue(gameRef, (snap) => {
+  const unsub = onValue(gameRef, snap => {
     if (!snap.exists()) return;
     gameState = snap.val();
     renderGame();
     checkTurnResult();
   });
-  unsubscribers.push(unsub);
+  unsubscribers.push(() => off(gameRef));
 }
 
-// ===== ゲーム描画 =====
+// =========================================
+//  ゲーム描画
+// =========================================
 function renderGame() {
   if (!gameState) return;
-
-  const me = gameState[myRole];
   const oppRole = myRole === 'player1' ? 'player2' : 'player1';
+  const me  = gameState[myRole];
   const opp = gameState[oppRole];
-
   if (!me || !opp) return;
 
-  // スコア
-  $('score-me').textContent = gameState.scores[myRole] || 0;
-  $('score-opp').textContent = gameState.scores[oppRole] || 0;
-  $('turn-num').textContent = gameState.turn || 1;
+  $('score-me').textContent  = gameState.scores[myRole]   || 0;
+  $('score-opp').textContent = gameState.scores[oppRole]  || 0;
+  $('turn-num').textContent  = gameState.turn || 1;
 
-  // 自分の手札
-  const myHand = me.hand || [];
-  renderMyHand(myHand);
+  // 名前を反映
+  const myName  = me.name  || 'あなた';
+  const oppName = opp.name || '相手';
+  $('my-name-label').textContent  = myName;
+  $('opp-name-label').textContent = oppName;
+  $('my-slot-label').textContent  = myName;
+  $('opp-slot-label').textContent = oppName;
 
-  // 相手の手札（枚数のみ表示）
-  const oppHand = opp.hand || [];
-  renderOppHand(oppHand);
+  renderMyHand(me.hand   || []);
+  renderOppHand(opp.hand || []);
+  $('hand-count').textContent = `(${(me.hand||[]).length}枚)`;
 
-  $('hand-count').textContent = `(${myHand.length}枚)`;
-
-  // フェーズ表示
-  const phase = gameState.turnPhase;
-  if (phase === 'select') {
+  if (gameState.turnPhase === 'select') {
     $('commentary').textContent = 'カードを選んで出してください！';
     $('opp-card-display').className = 'card card-back';
     $('opp-card-display').innerHTML = '?';
-    $('my-card-display').className = 'card card-placeholder';
+    $('my-card-display').className  = 'card card-placeholder';
     $('my-card-display').textContent = '選択中...';
   }
 }
@@ -247,22 +355,18 @@ function renderGame() {
 function renderMyHand(hand) {
   const container = $('my-hand');
   container.innerHTML = '';
-
   hand.forEach(cardId => {
     const card = CARDS[cardId];
     if (!card) return;
-
     const el = document.createElement('div');
     el.className = `hand-card ${card.type}`;
-    if (cardId === mySelectedCard) el.classList.add('selected');
-    if (gameState.turnPhase !== 'select') el.classList.add('disabled');
-
+    if (cardId === mySelectedCard)         el.classList.add('selected');
+    if (gameState.turnPhase !== 'select')  el.classList.add('disabled');
     el.innerHTML = `
       <div class="hc-icon">${card.icon}</div>
       <div class="hc-name">${card.name}</div>
       <div class="hc-level">${card.label}</div>
     `;
-
     el.addEventListener('click', () => selectCard(cardId));
     container.appendChild(el);
   });
@@ -280,14 +384,9 @@ function renderOppHand(hand) {
   });
 }
 
-function renderCardDisplay(slotId, cardId, faceUp = true) {
-  const slot = $(slotId);
-  if (!faceUp) {
-    slot.className = 'card card-back';
-    slot.innerHTML = '?';
-    return;
-  }
+function renderCardDisplay(slotId, cardId) {
   const card = CARDS[cardId];
+  const slot = $(slotId);
   if (!card) return;
   slot.className = `card ${card.type}`;
   slot.innerHTML = `
@@ -297,115 +396,83 @@ function renderCardDisplay(slotId, cardId, faceUp = true) {
   `;
 }
 
-// ===== カード選択・提出 =====
+// =========================================
+//  カード選択
+// =========================================
 function selectCard(cardId) {
   if (gameState.turnPhase !== 'select') return;
   const me = gameState[myRole];
-  if (!me || !me.hand || !me.hand.includes(cardId)) return;
+  if (!me?.hand?.includes(cardId) || me.ready) return;
 
   mySelectedCard = cardId;
   renderMyHand(me.hand);
 
-  // Firebaseに提出
-  submitCard(cardId);
+  update(ref(db), {
+    [`rooms/${roomId}/${myRole}/selectedCard`]: cardId,
+    [`rooms/${roomId}/${myRole}/ready`]:        true,
+  });
 }
 
-async function submitCard(cardId) {
-  const updates = {};
-  updates[`rooms/${roomId}/${myRole}/selectedCard`] = cardId;
-  updates[`rooms/${roomId}/${myRole}/ready`] = true;
-
-  await update(ref(db), updates);
-}
-
-// ===== ターン判定 =====
+// =========================================
+//  ターン判定
+// =========================================
 function checkTurnResult() {
   if (!gameState) return;
-  const phase = gameState.turnPhase;
+  const { turnPhase, player1, player2 } = gameState;
+  if (!player1 || !player2) return;
 
-  const p1 = gameState.player1;
-  const p2 = gameState.player2;
-
-  if (!p1 || !p2) return;
-
-  // 両者ready → 判定（player1のみが処理を担う、または先着処理）
-  if (p1.ready && p2.ready && phase === 'select') {
-    // ホスト（player1）が結果を計算してFirebaseに書き込む
-    if (myRole === 'player1') {
-      processRound();
-    }
+  if (player1.ready && player2.ready && turnPhase === 'select' && myRole === 'player1') {
+    processRound();
   }
-
-  // reveal フェーズ → モーダル表示
-  if (phase === 'reveal') {
-    showRoundResult();
-  }
-
-  // 終了チェック
-  if (phase === 'end') {
-    showEndScreen();
-  }
+  if (turnPhase === 'reveal') showRoundResult();
+  if (turnPhase === 'end')    showEndScreen();
 }
 
 async function processRound() {
-  const p1 = gameState.player1;
-  const p2 = gameState.player2;
-  const c1 = p1.selectedCard;
-  const c2 = p2.selectedCard;
+  const { player1, player2, scores, turn, yellowTarget } = gameState;
+  const c1 = player1.selectedCard;
+  const c2 = player2.selectedCard;
+  const result = judgeRound(c1, c2, yellowTarget || null);
 
-  // イエローカード判定
-  const yellowTarget = gameState.yellowTarget || null;
-  const result = judgeRound(c1, c2, yellowTarget);
+  const newScores = { ...scores };
+  if (result === 'player1') newScores.player1 = (newScores.player1||0) + 1;
+  if (result === 'player2') newScores.player2 = (newScores.player2||0) + 1;
 
-  const scores = { ...gameState.scores };
-  if (result === 'player1') scores.player1 = (scores.player1 || 0) + 1;
-  if (result === 'player2') scores.player2 = (scores.player2 || 0) + 1;
+  const newHand1  = (player1.hand||[]).filter(id => id !== c1);
+  const newHand2  = (player2.hand||[]).filter(id => id !== c2);
+  const discard1  = [...(player1.discard||[]), c1];
+  const discard2  = [...(player2.discard||[]), c2];
+  const nextTurn  = (turn||1) + 1;
+  const isEnd     = nextTurn > 10;
 
-  // 手札から使ったカードを除去
-  const newHand1 = (p1.hand || []).filter(id => id !== c1);
-  const newHand2 = (p2.hand || []).filter(id => id !== c2);
+  await update(ref(db), {
+    [`rooms/${roomId}/turnPhase`]:           'reveal',
+    [`rooms/${roomId}/lastResult`]:          { c1, c2, result },
+    [`rooms/${roomId}/scores`]:              newScores,
+    [`rooms/${roomId}/player1/hand`]:        newHand1,
+    [`rooms/${roomId}/player2/hand`]:        newHand2,
+    [`rooms/${roomId}/player1/discard`]:     discard1,
+    [`rooms/${roomId}/player2/discard`]:     discard2,
+    [`rooms/${roomId}/yellowTarget`]:        null,
+  });
 
-  // 捨て札に追加
-  const discard1 = [...(p1.discard || []), c1];
-  const discard2 = [...(p2.discard || []), c2];
-
-  const nextTurn = (gameState.turn || 1) + 1;
-  const isEnd = nextTurn > 10;
-
-  const updates = {
-    [`rooms/${roomId}/turnPhase`]: 'reveal',
-    [`rooms/${roomId}/lastResult`]: { c1, c2, result },
-    [`rooms/${roomId}/scores`]: scores,
-    [`rooms/${roomId}/player1/hand`]: newHand1,
-    [`rooms/${roomId}/player2/hand`]: newHand2,
-    [`rooms/${roomId}/player1/discard`]: discard1,
-    [`rooms/${roomId}/player2/discard`]: discard2,
-    [`rooms/${roomId}/yellowTarget`]: null,
-  };
-
-  await update(ref(db), updates);
-
-  // 自動で次のターンへ（3秒後）
   setTimeout(async () => {
     if (isEnd) {
-      // 終了
-      const finalUpdates = {
-        [`rooms/${roomId}/turnPhase`]: 'end',
-        [`rooms/${roomId}/turn`]: nextTurn,
-        [`rooms/${roomId}/player1/ready`]: false,
-        [`rooms/${roomId}/player2/ready`]: false,
-      };
-      await update(ref(db), finalUpdates);
+      await update(ref(db), {
+        [`rooms/${roomId}/turnPhase`]:       'end',
+        [`rooms/${roomId}/turn`]:            nextTurn,
+        [`rooms/${roomId}/player1/ready`]:   false,
+        [`rooms/${roomId}/player2/ready`]:   false,
+      });
     } else {
-      const nextUpdates = {
-        [`rooms/${roomId}/turn`]: nextTurn,
-        [`rooms/${roomId}/turnPhase`]: 'select',
-        [`rooms/${roomId}/player1/ready`]: false,
-        [`rooms/${roomId}/player2/ready`]: false,
+      await update(ref(db), {
+        [`rooms/${roomId}/turn`]:              nextTurn,
+        [`rooms/${roomId}/turnPhase`]:         'select',
+        [`rooms/${roomId}/player1/ready`]:     false,
+        [`rooms/${roomId}/player2/ready`]:     false,
         [`rooms/${roomId}/player1/selectedCard`]: null,
         [`rooms/${roomId}/player2/selectedCard`]: null,
-      };
-      await update(ref(db), nextUpdates);
+      });
       mySelectedCard = null;
     }
   }, 3000);
@@ -414,82 +481,62 @@ async function processRound() {
 function showRoundResult() {
   const lr = gameState.lastResult;
   if (!lr) return;
-
   const { c1, c2, result } = lr;
   const oppRole = myRole === 'player1' ? 'player2' : 'player1';
-
-  const myCard = myRole === 'player1' ? c1 : c2;
+  const myCard  = myRole === 'player1' ? c1 : c2;
   const oppCard = myRole === 'player1' ? c2 : c1;
 
-  renderCardDisplay('my-card-display', myCard, true);
-  renderCardDisplay('opp-card-display', oppCard, true);
+  renderCardDisplay('my-card-display',  myCard);
+  renderCardDisplay('opp-card-display', oppCard);
+  $('commentary').textContent = getCommentary(result, myRole, c1, c2);
 
-  const commentary = getCommentary(result, myRole, c1, c2);
-  $('commentary').textContent = commentary;
-
-  // モーダル
-  const modal = $('result-modal');
-  const myCardData = CARDS[myCard];
-  const oppCardData = CARDS[oppCard];
-
-  let icon, text;
-  if (result === 'draw' || result === 'draw_yellow') {
-    icon = '🤝'; text = '引き分け';
-  } else if (result === myRole) {
-    icon = '🎉'; text = '勝ち！ +1点';
-  } else {
-    icon = '😢'; text = '負け...';
-  }
-
-  $('result-icon').textContent = icon;
-  $('result-text').textContent = text;
-  $('result-cards').innerHTML = `
-    <div class="card ${myCardData?.type}" style="width:60px;height:84px;font-size:0.65rem">
-      <div>${myCardData?.icon}</div><div>${myCardData?.name}</div><div>${myCardData?.label}</div>
+  const mc = CARDS[myCard], oc = CARDS[oppCard];
+  const isDraw = result === 'draw' || result === 'draw_yellow';
+  const isWin  = result === myRole;
+  $('result-icon').textContent = isDraw ? '🤝' : isWin ? '🎉' : '😢';
+  $('result-text').textContent = isDraw ? '引き分け' : isWin ? '勝ち！ +1点' : '負け...';
+  $('result-cards').innerHTML  = `
+    <div class="card ${mc?.type}" style="width:60px;height:84px;font-size:0.65rem">
+      <div>${mc?.icon}</div><div>${mc?.name}</div><div>${mc?.label}</div>
     </div>
     <span class="vs-small">VS</span>
-    <div class="card ${oppCardData?.type}" style="width:60px;height:84px;font-size:0.65rem">
-      <div>${oppCardData?.icon}</div><div>${oppCardData?.name}</div><div>${oppCardData?.label}</div>
+    <div class="card ${oc?.type}" style="width:60px;height:84px;font-size:0.65rem">
+      <div>${oc?.icon}</div><div>${oc?.name}</div><div>${oc?.label}</div>
     </div>
   `;
-  $('result-score').textContent = `${gameState.scores[myRole] || 0} - ${gameState.scores[oppRole] || 0}`;
+  $('result-score').textContent =
+    `${gameState.scores[myRole]||0} - ${gameState.scores[oppRole]||0}`;
 
+  const modal = $('result-modal');
   modal.classList.remove('hidden');
   setTimeout(() => modal.classList.add('hidden'), 2800);
 }
 
-// ===== オプションカード =====
-function renderOptionButtons() {
-  // ここでオプションエリアのボタンを設定
-  // （デフォルト実装: 基本ルールのみ、オプションは非表示）
-  $('option-area').classList.add('hidden');
-}
-
-// ===== 終了画面 =====
+// =========================================
+//  終了画面
+// =========================================
 function showEndScreen() {
   if (!gameState) return;
+  cleanupListeners();
   showScreen('screen-end');
 
-  const scores = gameState.scores || {};
-  const myScore = scores[myRole] || 0;
-  const oppRole = myRole === 'player1' ? 'player2' : 'player1';
-  const oppScore = scores[oppRole] || 0;
+  const oppRole  = myRole === 'player1' ? 'player2' : 'player1';
+  const myScore  = gameState.scores[myRole]   || 0;
+  const oppScore = gameState.scores[oppRole]  || 0;
 
-  $('final-score-me').textContent = myScore;
+  $('final-score-me').textContent  = myScore;
   $('final-score-opp').textContent = oppScore;
+  $('btn-restart').classList.remove('hidden');
 
   if (myScore > oppScore) {
     $('end-icon').textContent = '🏆';
     $('end-title').textContent = 'あなたの勝利！';
     showFinalMsg('🎊 おめでとう！完璧な試合でした！', 'win');
-    $('btn-restart').classList.remove('hidden');
   } else if (myScore < oppScore) {
     $('end-icon').textContent = '😢';
     $('end-title').textContent = '惜しくも敗北...';
     showFinalMsg('次は勝てる！リベンジしよう！', 'lose');
-    $('btn-restart').classList.remove('hidden');
   } else {
-    // 同点 → PK戦
     $('end-icon').textContent = '⚽';
     $('end-title').textContent = '同点！PK戦へ！';
     startPK();
@@ -503,65 +550,44 @@ function showFinalMsg(msg, cls) {
   el.classList.remove('hidden');
 }
 
-// ===== PK戦 =====
-let pkState = { round: 0 };
-
+// =========================================
+//  PK戦
+// =========================================
 function startPK() {
+  pkState = { round: 0 };
   $('pk-area').classList.remove('hidden');
-  $('btn-pk').addEventListener('click', doPK);
-  pkState.round = 0;
-  addPKLog('PK戦開始！シュートカードを高い順に出します');
+  $('btn-pk').classList.remove('hidden');
+  $('btn-pk').disabled = false;
+  addPKLog('PK戦開始！シュートカードの数値で決着！');
+  $('btn-pk').onclick = doPK;
 }
 
-async function doPK() {
+function doPK() {
   $('btn-pk').disabled = true;
-  const p1 = gameState.player1;
-  const p2 = gameState.player2;
+  const p1 = gameState.player1, p2 = gameState.player2;
+  const getCards = (discard, type) =>
+    (discard||[]).filter(id => CARDS[id]?.type === type)
+                 .sort((a,b) => (CARDS[b].level||0) - (CARDS[a].level||0));
 
-  // 捨て札からシュートカードを取得（levelで降順）
-  const getShootCards = (discard) =>
-    (discard || [])
-      .filter(id => CARDS[id]?.type === 'shoot')
-      .sort((a, b) => (CARDS[b].level || 0) - (CARDS[a].level || 0));
-
-  const shoots1 = getShootCards(p1.discard);
-  const shoots2 = getShootCards(p2.discard);
-
-  const idx = pkState.round;
-  const c1 = shoots1[idx];
-  const c2 = shoots2[idx];
+  let c1 = getCards(p1.discard,'shoot')[pkState.round];
+  let c2 = getCards(p2.discard,'shoot')[pkState.round];
 
   if (!c1 || !c2) {
-    // ブロックカードで代替
-    addPKLog('シュートカードがなくなった！ブロックカードで決着！');
-    const blocks1 = (p1.discard || []).filter(id => CARDS[id]?.type === 'block').sort((a,b)=>(CARDS[b].level||0)-(CARDS[a].level||0));
-    const blocks2 = (p2.discard || []).filter(id => CARDS[id]?.type === 'block').sort((a,b)=>(CARDS[b].level||0)-(CARDS[a].level||0));
-    const bc1 = blocks1[idx];
-    const bc2 = blocks2[idx];
-    if (!bc1 || !bc2) { addPKLog('カードがなくなりました。引き分け！'); showFinalMsg('⚽ 完全引き分け！', 'draw'); return; }
-    resolvePK(bc1, bc2);
-    return;
+    addPKLog('シュートカードなし！ブロックカードで決着！');
+    c1 = getCards(p1.discard,'block')[pkState.round];
+    c2 = getCards(p2.discard,'block')[pkState.round];
+    if (!c1 || !c2) { addPKLog('引き分け！'); showFinalMsg('⚽ 完全引き分け！','draw'); return; }
   }
 
-  resolvePK(c1, c2);
-}
+  const mc  = myRole === 'player1' ? c1 : c2;
+  const opc = myRole === 'player1' ? c2 : c1;
+  addPKLog(`あなた: ${CARDS[mc]?.icon}${CARDS[mc]?.name}${CARDS[mc]?.label} vs 相手: ${CARDS[opc]?.icon}${CARDS[opc]?.name}${CARDS[opc]?.label}`);
 
-function resolvePK(c1, c2) {
-  const card1 = CARDS[c1];
-  const card2 = CARDS[c2];
-  const myC = myRole === 'player1' ? c1 : c2;
-  const oppC = myRole === 'player1' ? c2 : c1;
-
-  addPKLog(`あなた: ${CARDS[myC].icon}${CARDS[myC].name}${CARDS[myC].label} vs 相手: ${CARDS[oppC].icon}${CARDS[oppC].name}${CARDS[oppC].label}`);
-
-  if (card1.level > card2.level) {
-    const winner = myRole === 'player1' ? 'あなた' : '相手';
-    addPKLog(`→ ${winner} が勝利！`);
-    finalizePK(myRole === 'player1' ? 'win' : 'lose');
-  } else if (card1.level < card2.level) {
-    const winner = myRole === 'player2' ? 'あなた' : '相手';
-    addPKLog(`→ ${winner} が勝利！`);
-    finalizePK(myRole === 'player2' ? 'win' : 'lose');
+  const l1 = CARDS[c1]?.level||0, l2 = CARDS[c2]?.level||0;
+  if (l1 !== l2) {
+    const winner = (l1>l2) === (myRole==='player1') ? 'win' : 'lose';
+    addPKLog(`→ ${winner==='win'?'あなた':'相手'} が勝利！`);
+    finalizePK(winner);
   } else {
     addPKLog('→ 同点！もう1枚で再戦！');
     pkState.round++;
@@ -571,16 +597,14 @@ function resolvePK(c1, c2) {
 
 function finalizePK(result) {
   $('btn-pk').classList.add('hidden');
-  if (result === 'win') {
-    showFinalMsg('🏆 PK戦勝利！最高の戦いでした！', 'win');
-  } else {
-    showFinalMsg('😢 PK戦敗北... 次こそ！', 'lose');
-  }
-  $('btn-restart').classList.remove('hidden');
+  showFinalMsg(
+    result === 'win' ? '🏆 PK戦勝利！最高の戦いでした！' : '😢 PK戦敗北... 次こそ！',
+    result
+  );
 }
 
 function addPKLog(text) {
-  const log = $('pk-log');
+  const log   = $('pk-log');
   const entry = document.createElement('div');
   entry.className = 'pk-log-entry';
   entry.textContent = text;
@@ -588,11 +612,28 @@ function addPKLog(text) {
   log.scrollTop = log.scrollHeight;
 }
 
-// ===== リスタート =====
+// =========================================
+//  リスタート
+// =========================================
 $('btn-restart').addEventListener('click', async () => {
-  // ルームをクリア
-  await remove(ref(db, `rooms/${roomId}`));
-  unsubscribers.forEach(fn => typeof fn === 'function' && fn());
-  unsubscribers = [];
-  location.reload();
+  try { await remove(ref(db, `rooms/${roomId}`)); } catch(e){}
+  cleanupListeners();
+  myRole = roomId = gameState = mySelectedCard = null;
+  pkState = { round: 0 };
+  // 終了画面リセット
+  $('pk-area').classList.add('hidden');
+  $('pk-log').innerHTML = '';
+  $('end-final-msg').classList.add('hidden');
+  $('btn-restart').classList.add('hidden');
+  $('btn-pk').classList.remove('hidden');
+  $('btn-pk').disabled = false;
+  // アカウント画面へ
+  renderAccountScreen();
+  showScreen('screen-account');
 });
+
+// =========================================
+//  起動
+// =========================================
+renderAccountScreen();
+showScreen('screen-account');
