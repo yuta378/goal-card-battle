@@ -8,17 +8,29 @@
 </head>
 <body>
 
-<!-- ========== ロビー画面 ========== -->
-<div id="screen-lobby" class="screen active">
-  <div class="lobby-container">
+<!-- ========== アカウント選択画面 ========== -->
+<div id="screen-account" class="screen active">
+  <div class="account-container">
     <h1>⚽ ゴール！カードバトル</h1>
-    <p class="subtitle">友達とオンライン対戦！</p>
+    <p class="subtitle">プレイヤーを選んでください</p>
+    <div id="account-grid" class="account-grid"></div>
+  </div>
+</div>
+
+<!-- ========== ロビー画面 ========== -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-container">
+    <button id="btn-back-account" class="btn-back">← 戻る</button>
+
+    <div id="selected-account-banner" class="selected-account-banner"></div>
+    <h2 class="lobby-title">対戦する</h2>
 
     <div class="lobby-card">
       <button id="btn-create" class="btn btn-primary">🎮 ルームを作る</button>
       <div class="divider">または</div>
       <div class="join-group">
-        <input id="input-room-id" type="text" placeholder="ルームIDを入力..." maxlength="6" />
+        <input id="input-room-id" type="text" placeholder="00"
+               maxlength="2" inputmode="numeric" pattern="\d*" />
         <button id="btn-join" class="btn btn-secondary">🚪 参加する</button>
       </div>
     </div>
@@ -37,7 +49,6 @@
 <div id="screen-game" class="screen">
   <div class="game-layout">
 
-    <!-- スコアボード -->
     <div class="scoreboard">
       <div class="score-block">
         <span class="score-label" id="my-name-label">あなた</span>
@@ -53,47 +64,37 @@
       </div>
     </div>
 
-    <!-- 実況メッセージ -->
     <div id="commentary" class="commentary">カードを選んでください</div>
 
-    <!-- 相手の手札エリア -->
     <div class="opponent-area">
       <div class="area-label">相手の手札</div>
       <div id="opp-hand" class="hand-display"></div>
     </div>
 
-    <!-- バトルフィールド -->
     <div class="battle-field">
       <div class="card-slot" id="slot-opp">
         <div class="card card-back" id="opp-card-display">?</div>
-        <div class="slot-label">相手</div>
+        <div class="slot-label" id="opp-slot-label">相手</div>
       </div>
       <div class="vs-badge">⚡</div>
       <div class="card-slot" id="slot-me">
         <div class="card card-placeholder" id="my-card-display">選択中...</div>
-        <div class="slot-label">あなた</div>
+        <div class="slot-label" id="my-slot-label">あなた</div>
       </div>
     </div>
 
-    <!-- 自分の手札 -->
     <div class="my-area">
       <div class="area-label">あなたの手札 <span id="hand-count"></span></div>
       <div id="my-hand" class="hand-cards"></div>
     </div>
 
-    <!-- オプションカードエリア -->
     <div id="option-area" class="option-area hidden">
       <div class="option-buttons">
-        <button id="btn-yellow" class="btn btn-yellow" title="相手のカードを無効化">
-          🟡 イエローカード
-        </button>
-        <button id="btn-red" class="btn btn-red" title="相手のドリブルカードを1枚捨てさせる">
-          🔴 レッドカード
-        </button>
+        <button id="btn-yellow" class="btn btn-yellow">🟡 イエローカード</button>
+        <button id="btn-red" class="btn btn-red">🔴 レッドカード</button>
       </div>
     </div>
 
-    <!-- ターン結果モーダル -->
     <div id="result-modal" class="modal hidden">
       <div class="modal-content">
         <div id="result-icon" class="result-icon"></div>
@@ -122,13 +123,13 @@
       <button id="btn-pk" class="btn btn-primary">PKを蹴る！</button>
     </div>
     <div id="end-final-msg" class="end-final-msg hidden"></div>
-    <button id="btn-restart" class="btn btn-primary hidden">🔄 もう一度遊ぶ</button>
+    <button id="btn-restart" class="btn btn-primary hidden">
+      🔄 アカウント選択に戻る
+    </button>
   </div>
 </div>
 
-<!-- Firebase SDK -->
 <script type="module" src="firebase-config.js"></script>
 <script type="module" src="game.js"></script>
-
 </body>
 </html>
