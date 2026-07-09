@@ -481,3 +481,24 @@ body {
   .score-num { font-size: 2rem; }
   .score-label { font-size: 0.7rem; max-width: 60px; }
 }
+/* ===== カード画像 ===== */
+.card-img {
+  width: 100%;
+  height: 70%;
+  object-fit: contain;
+  border-radius: 6px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.hand-card .card-img {
+  height: 65%;
+}
+
+.hc-label {
+  font-size: 0.62rem;
+  text-align: center;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
