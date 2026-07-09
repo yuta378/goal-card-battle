@@ -5,16 +5,16 @@ import {
 
 // ===== カード定義 =====
 const CARDS = {
-  SHOOT_1:  { id:'SHOOT_1',  type:'shoot',   level:1, icon:'⚽', name:'シュート', label:'Lv.1' },
-  SHOOT_2:  { id:'SHOOT_2',  type:'shoot',   level:2, icon:'⚽', name:'シュート', label:'Lv.2' },
-  SHOOT_3:  { id:'SHOOT_3',  type:'shoot',   level:3, icon:'⚽', name:'シュート', label:'Lv.3' },
-  SHOOT_4:  { id:'SHOOT_4',  type:'shoot',   level:4, icon:'⚽', name:'シュート', label:'Lv.4' },
-  BLOCK_1:  { id:'BLOCK_1',  type:'block',   level:1, icon:'🛡️', name:'ブロック', label:'Lv.1' },
-  BLOCK_2:  { id:'BLOCK_2',  type:'block',   level:2, icon:'🛡️', name:'ブロック', label:'Lv.2' },
-  BLOCK_3:  { id:'BLOCK_3',  type:'block',   level:3, icon:'🛡️', name:'ブロック', label:'Lv.3' },
-  BLOCK_4:  { id:'BLOCK_4',  type:'block',   level:4, icon:'🛡️', name:'ブロック', label:'Lv.4' },
-  DRIBBLE_A:{ id:'DRIBBLE_A',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'' },
-  DRIBBLE_B:{ id:'DRIBBLE_B',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'' },
+  SHOOT_1:  { id:'SHOOT_1',  type:'shoot',   level:1, icon:'⚽', name:'シュート', label:'Lv.1', image:'images/shoot_1.png' },
+  SHOOT_2:  { id:'SHOOT_2',  type:'shoot',   level:2, icon:'⚽', name:'シュート', label:'Lv.2', image:'images/shoot_2.png' },
+  SHOOT_3:  { id:'SHOOT_3',  type:'shoot',   level:3, icon:'⚽', name:'シュート', label:'Lv.3', image:'images/shoot_3.png' },
+  SHOOT_4:  { id:'SHOOT_4',  type:'shoot',   level:4, icon:'⚽', name:'シュート', label:'Lv.4', image:'images/shoot_4.png' },
+  BLOCK_1:  { id:'BLOCK_1',  type:'block',   level:1, icon:'🛡️', name:'ブロック', label:'Lv.1', image:'images/block_1.png' },
+  BLOCK_2:  { id:'BLOCK_2',  type:'block',   level:2, icon:'🛡️', name:'ブロック', label:'Lv.2', image:'images/block_2.png' },
+  BLOCK_3:  { id:'BLOCK_3',  type:'block',   level:3, icon:'🛡️', name:'ブロック', label:'Lv.3', image:'images/block_3.png' },
+  BLOCK_4:  { id:'BLOCK_4',  type:'block',   level:4, icon:'🛡️', name:'ブロック', label:'Lv.4', image:'images/block_4.png' },
+  DRIBBLE_A:{ id:'DRIBBLE_A',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'', image:'images/dribble_a.png' },
+  DRIBBLE_B:{ id:'DRIBBLE_B',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'', image:'images/dribble_b.png' },
 };
 
 const INITIAL_DECK = Object.keys(CARDS);
@@ -363,9 +363,8 @@ function renderMyHand(hand) {
     if (cardId === mySelectedCard)         el.classList.add('selected');
     if (gameState.turnPhase !== 'select')  el.classList.add('disabled');
     el.innerHTML = `
-      <div class="hc-icon">${card.icon}</div>
-      <div class="hc-name">${card.name}</div>
-      <div class="hc-level">${card.label}</div>
+      <img src="${card.image}" alt="${card.name}" class="card-img" />
+      <div class="hc-label">${card.name} ${card.label}</div>
     `;
     el.addEventListener('click', () => selectCard(cardId));
     container.appendChild(el);
@@ -390,9 +389,8 @@ function renderCardDisplay(slotId, cardId) {
   if (!card) return;
   slot.className = `card ${card.type}`;
   slot.innerHTML = `
-    <div class="card-icon">${card.icon}</div>
-    <div class="card-name">${card.name}</div>
-    <div class="card-level">${card.label}</div>
+    <img src="${card.image}" alt="${card.name}" class="card-img" />
+    <div class="card-name">${card.name} ${card.label}</div>
   `;
 }
 
@@ -495,15 +493,17 @@ function showRoundResult() {
   const isWin  = result === myRole;
   $('result-icon').textContent = isDraw ? '🤝' : isWin ? '🎉' : '😢';
   $('result-text').textContent = isDraw ? '引き分け' : isWin ? '勝ち！ +1点' : '負け...';
-  $('result-cards').innerHTML  = `
-    <div class="card ${mc?.type}" style="width:60px;height:84px;font-size:0.65rem">
-      <div>${mc?.icon}</div><div>${mc?.name}</div><div>${mc?.label}</div>
-    </div>
-    <span class="vs-small">VS</span>
-    <div class="card ${oc?.type}" style="width:60px;height:84px;font-size:0.65rem">
-      <div>${oc?.icon}</div><div>${oc?.name}</div><div>${oc?.label}</div>
-    </div>
-  `;
+  $('result-cards').innerHTML = `
+  <div class="card ${mc?.type}" style="width:60px;height:84px">
+    <img src="${mc?.image}" alt="${mc?.name}" class="card-img" />
+    <div style="font-size:0.6rem">${mc?.name} ${mc?.label}</div>
+  </div>
+  <span class="vs-small">VS</span>
+  <div class="card ${oc?.type}" style="width:60px;height:84px">
+    <img src="${oc?.image}" alt="${oc?.name}" class="card-img" />
+    <div style="font-size:0.6rem">${oc?.name} ${oc?.label}</div>
+  </div>
+`;
   $('result-score').textContent =
     `${gameState.scores[myRole]||0} - ${gameState.scores[oppRole]||0}`;
 
