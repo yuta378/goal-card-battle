@@ -359,13 +359,22 @@ function renderMyHand(hand) {
     const card = CARDS[cardId];
     if (!card) return;
     const el = document.createElement('div');
-    el.className = `hand-card ${card.type}`;
+    el.className = `hand-card ${card.type} img-card`;
     if (cardId === mySelectedCard)         el.classList.add('selected');
     if (gameState.turnPhase !== 'select')  el.classList.add('disabled');
-    el.innerHTML = `
-      <img src="${card.image}" alt="${card.name}" class="card-img" />
-      <div class="hc-label">${card.name} ${card.label}</div>
-    `;
+
+    // 画像があればそのまま表示、なければ従来の表示
+    if (card.image) {
+      el.innerHTML = `
+        <img src="${card.image}" alt="${card.name}" class="card-img-full" />
+      `;
+    } else {
+      el.innerHTML = `
+        <div class="hc-icon">${card.icon}</div>
+        <div class="hc-name">${card.name}</div>
+        <div class="hc-level">${card.label}</div>
+      `;
+    }
     el.addEventListener('click', () => selectCard(cardId));
     container.appendChild(el);
   });
