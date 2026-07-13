@@ -396,11 +396,20 @@ function renderCardDisplay(slotId, cardId) {
   const card = CARDS[cardId];
   const slot = $(slotId);
   if (!card) return;
-  slot.className = `card ${card.type}`;
-  slot.innerHTML = `
-    <img src="${card.image}" alt="${card.name}" class="card-img" />
-    <div class="card-name">${card.name} ${card.label}</div>
-  `;
+  slot.className = `card ${card.type} img-card`;
+
+  // 画像があればそのまま表示、なければ従来の表示
+  if (card.image) {
+    slot.innerHTML = `
+      <img src="${card.image}" alt="${card.name}" class="card-img-full" />
+    `;
+  } else {
+    slot.innerHTML = `
+      <div class="card-icon">${card.icon}</div>
+      <div class="card-name">${card.name}</div>
+      <div class="card-level">${card.label}</div>
+    `;
+  }
 }
 
 // =========================================
@@ -503,14 +512,18 @@ function showRoundResult() {
   $('result-icon').textContent = isDraw ? '🤝' : isWin ? '🎉' : '😢';
   $('result-text').textContent = isDraw ? '引き分け' : isWin ? '勝ち！ +1点' : '負け...';
   $('result-cards').innerHTML = `
-  <div class="card ${mc?.type}" style="width:60px;height:84px">
-    <img src="${mc?.image}" alt="${mc?.name}" class="card-img" />
-    <div style="font-size:0.6rem">${mc?.name} ${mc?.label}</div>
+  <div class="card ${mc?.type} img-card" style="width:60px;height:84px">
+    ${mc?.image
+      ? `<img src="${mc.image}" alt="${mc?.name}" class="card-img-full" />`
+      : `<div style="font-size:0.65rem;padding:4px">${mc?.icon}<br>${mc?.name}<br>${mc?.label}</div>`
+    }
   </div>
   <span class="vs-small">VS</span>
-  <div class="card ${oc?.type}" style="width:60px;height:84px">
-    <img src="${oc?.image}" alt="${oc?.name}" class="card-img" />
-    <div style="font-size:0.6rem">${oc?.name} ${oc?.label}</div>
+  <div class="card ${oc?.type} img-card" style="width:60px;height:84px">
+    ${oc?.image
+      ? `<img src="${oc.image}" alt="${oc?.name}" class="card-img-full" />`
+      : `<div style="font-size:0.65rem;padding:4px">${oc?.icon}<br>${oc?.name}<br>${oc?.label}</div>`
+    }
   </div>
 `;
   $('result-score').textContent =
