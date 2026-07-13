@@ -22,7 +22,6 @@
 
 body {
   font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
-  body {
   background-color: #071a10;
   background-image:
     radial-gradient(ellipse at 50% -10%,
@@ -41,7 +40,6 @@ body {
       transparent 50px,
       transparent 100px
     );
-}
   color: var(--text);
   min-height: 100vh;
   display: flex;
