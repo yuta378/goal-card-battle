@@ -21,10 +21,8 @@
 <div id="screen-lobby" class="screen">
   <div class="lobby-container">
     <button id="btn-back-account" class="btn-back">← 戻る</button>
-
     <div id="selected-account-banner" class="selected-account-banner"></div>
     <h2 class="lobby-title">対戦する</h2>
-
     <div class="lobby-card">
       <button id="btn-create" class="btn btn-primary">🎮 ルームを作る</button>
       <div class="divider">または</div>
@@ -34,13 +32,11 @@
         <button id="btn-join" class="btn btn-secondary">🚪 参加する</button>
       </div>
     </div>
-
     <div id="room-info" class="room-info hidden">
       <p>ルームID：<strong id="display-room-id"></strong></p>
       <p class="hint">このIDを友達に伝えてください</p>
       <p id="waiting-msg" class="waiting-anim">⏳ 相手の参加を待っています...</p>
     </div>
-
     <div id="lobby-error" class="error-msg hidden"></div>
   </div>
 </div>
@@ -78,7 +74,7 @@
       </div>
       <div class="vs-badge">⚡</div>
       <div class="card-slot" id="slot-me">
-        <div class="card card-placeholder" id="my-card-display">選択中...</div>
+        <div class="card card-placeholder" id="my-card-display">ここにドロップ</div>
         <div class="slot-label" id="my-slot-label">あなた</div>
       </div>
     </div>
@@ -107,12 +103,23 @@
   </div>
 </div>
 
+<!-- ========== カード拡大モーダル ========== -->
+<!-- ★★★ ここが新規追加箇所 ★★★ -->
+<div id="card-zoom-modal" class="modal hidden">
+  <div class="zoom-backdrop" id="zoom-backdrop">
+    <div class="zoom-content">
+      <button id="btn-close-zoom" class="btn-close-zoom">✕ 閉じる</button>
+      <img id="zoom-card-img" src="" alt="" class="zoom-card-img" />
+    </div>
+  </div>
+</div>
+
 <!-- ========== 終了画面 ========== -->
 <div id="screen-end" class="screen">
   <div class="end-container">
     <div id="end-result-image" class="end-result-image hidden">
-  <img id="end-result-img" src="" alt="結果" />
-</div>
+      <img id="end-result-img" src="" alt="結果" />
+    </div>
     <div id="end-icon" class="end-icon"></div>
     <h2 id="end-title"></h2>
     <div class="final-score">
