@@ -36,7 +36,7 @@ const $ = id => document.getElementById(id);
 function preloadAllImages() {
   const urls = [
     ...Object.values(CARDS).map(c => c.image),
-    'images/background.jpg',
+    'images/background.webp',
     'images/win.png',
     'images/lose.png',
   ].filter(Boolean);
