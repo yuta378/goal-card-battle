@@ -5,8 +5,8 @@ import {
 
 // ===== カード定義 =====
 const CARDS = {
-  SHOOT_1:  { id:'SHOOT_1',  type:'shoot',   level:1, icon:'⚽', name:'シュート', label:'Lv.1', image:'images/shoot_1.png' },
-  SHOOT_2:  { id:'SHOOT_2',  type:'shoot',   level:2, icon:'⚽', name:'シュート', label:'Lv.2', image:'images/shoot_2.png' },
+  SHOOT_1:  { id:'SHOOT_1',  type:'shoot',   level:1, icon:'⚽', name:'シュート', label:'Lv.1', image:'images/shoot_1.webp' },
+  SHOOT_2:  { id:'SHOOT_2',  type:'shoot',   level:2, icon:'⚽', name:'シュート', label:'Lv.2', image:'images/shoot_2.webp' },
   SHOOT_3:  { id:'SHOOT_3',  type:'shoot',   level:3, icon:'⚽', name:'シュート', label:'Lv.3', image:'images/shoot_3.png' },
   SHOOT_4:  { id:'SHOOT_4',  type:'shoot',   level:4, icon:'⚽', name:'シュート', label:'Lv.4', image:'images/shoot_4.png' },
   BLOCK_1:  { id:'BLOCK_1',  type:'block',   level:1, icon:'🛡️', name:'ブロック', label:'Lv.1', image:'images/block_1.png' },
