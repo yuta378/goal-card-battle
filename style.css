@@ -52,6 +52,12 @@ body {
   padding: 32px 20px;
   max-width: 640px;
   width: 100%;
+
+  /* ★ 背景画像に溶け込まないよう半透明の黒背景を追加 */
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 20px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .account-container h1 { font-size: 2rem; margin-bottom: 6px; }
 .account-container .subtitle {
