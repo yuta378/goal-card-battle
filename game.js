@@ -358,14 +358,22 @@ function renderGame() {
     $('opp-card-display').innerHTML = '?';
 
     // ★ 自分のスロット：選択済みならカードを表示し続ける
-    if (mySelectedCard) {
-      renderCardDisplay('my-card-display', mySelectedCard);
-      $('commentary').textContent = '✅ カードを出しました！相手を待っています...';
-    } else {
-      $('my-card-display').className   = 'card card-placeholder';
-      $('my-card-display').textContent = 'ここにドロップ';
-      $('commentary').textContent = 'カードを選んで出してください！';
-    }
+   if (gameState.turnPhase === 'select') {
+  $('opp-card-display').className = 'card card-back';
+  $('opp-card-display').innerHTML = '?';
+
+  // ★ 新ターン開始時（ready:false）にカードをリセット
+  if (!gameState[myRole]?.ready) {
+    mySelectedCard = null;
+  }
+
+  if (mySelectedCard) {
+    renderCardDisplay('my-card-display', mySelectedCard);
+    $('commentary').textContent = '✅ カードを出しました！相手を待っています...';
+  } else {
+    $('my-card-display').className   = 'card card-placeholder';
+    $('my-card-display').textContent = 'ここにドロップ';
+    $('commentary').textContent = 'カードを選んで出してください！';
   }
 }
 
