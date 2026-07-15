@@ -27,8 +27,25 @@ let gameState       = null;
 let mySelectedCard  = null;
 let unsubscribers   = [];
 let pkState         = { round: 0 };
-let countdownActive = false; // ★ カウントダウン制御フラグ
+let countdownActive = false;
 const $ = id => document.getElementById(id);
+
+// =========================================
+//  画像プリロード
+// =========================================
+function preloadAllImages() {
+  const urls = [
+    ...Object.values(CARDS).map(c => c.image),
+    'images/background.jpg',
+    'images/win.png',
+    'images/lose.png',
+  ].filter(Boolean);
+  urls.forEach(url => {
+    const img = new Image();
+    img.src = url;
+  });
+}
+preloadAllImages();
 
 // =========================================
 //  アカウント管理
@@ -269,7 +286,7 @@ function startGame() {
   countdownActive = false;
   showScreen('screen-game');
   $('option-area').classList.add('hidden');
-  setupDropZone(); // ★ ドロップゾーン設定
+  setupDropZone();
   const gameRef = ref(db, `rooms/${roomId}`);
   const unsub = onValue(gameRef, snap => {
     if (!snap.exists()) return;
@@ -281,7 +298,7 @@ function startGame() {
 }
 
 // =========================================
-//  ★ ドロップゾーン設定
+//  ドロップゾーン設定
 // =========================================
 function setupDropZone() {
   const dropZone = $('slot-me');
@@ -306,7 +323,7 @@ function setupDropZone() {
 }
 
 // =========================================
-//  ★ カード拡大表示
+//  カード拡大表示
 // =========================================
 function showCardZoom(cardId) {
   const card = CARDS[cardId];
@@ -316,7 +333,6 @@ function showCardZoom(cardId) {
   $('card-zoom-modal').classList.remove('hidden');
 }
 
-// ズームモーダルを閉じる（起動時に一度だけ登録）
 $('zoom-backdrop').addEventListener('click', (e) => {
   if (e.target === $('zoom-backdrop')) $('card-zoom-modal').classList.add('hidden');
 });
@@ -353,32 +369,27 @@ function renderGame() {
   $('hand-count').textContent = `(${(me.hand||[]).length}枚)`;
 
   if (gameState.turnPhase === 'select') {
-    // 相手スロットは常に裏向き
     $('opp-card-display').className = 'card card-back';
     $('opp-card-display').innerHTML = '?';
 
-    // ★ 自分のスロット：選択済みならカードを表示し続ける
-   if (gameState.turnPhase === 'select') {
-  $('opp-card-display').className = 'card card-back';
-  $('opp-card-display').innerHTML = '?';
+    // ★ 新ターン開始時（ready:false）にカードをリセット
+    if (!gameState[myRole]?.ready) {
+      mySelectedCard = null;
+    }
 
-  // ★ 新ターン開始時（ready:false）にカードをリセット
-  if (!gameState[myRole]?.ready) {
-    mySelectedCard = null;
-  }
-
-  if (mySelectedCard) {
-    renderCardDisplay('my-card-display', mySelectedCard);
-    $('commentary').textContent = '✅ カードを出しました！相手を待っています...';
-  } else {
-    $('my-card-display').className   = 'card card-placeholder';
-    $('my-card-display').textContent = 'ここにドロップ';
-    $('commentary').textContent = 'カードを選んで出してください！';
+    if (mySelectedCard) {
+      renderCardDisplay('my-card-display', mySelectedCard);
+      $('commentary').textContent = '✅ カードを出しました！相手を待っています...';
+    } else {
+      $('my-card-display').className   = 'card card-placeholder';
+      $('my-card-display').textContent = 'ここにドロップ';
+      $('commentary').textContent = 'カードを選んで出してください！';
+    }
   }
 }
 
 // =========================================
-//  ★ 手札描画（ドラッグ＆ドロップ + クリックで拡大）
+//  手札描画（ドラッグ＆ドロップ + クリックで拡大）
 // =========================================
 function renderMyHand(hand) {
   const container = $('my-hand');
@@ -404,7 +415,6 @@ function renderMyHand(hand) {
       `;
     }
 
-    // ── ドラッグ＆ドロップ ──
     el.draggable = true;
     let isDragging = false;
 
@@ -422,7 +432,6 @@ function renderMyHand(hand) {
       setTimeout(() => { isDragging = false; }, 50);
     });
 
-    // ── クリックで拡大表示 ──
     el.addEventListener('click', () => {
       if (isDragging) return;
       showCardZoom(cardId);
@@ -471,7 +480,7 @@ function selectCard(cardId) {
   if (!me?.hand?.includes(cardId) || me.ready) return;
   mySelectedCard = cardId;
   renderMyHand(me.hand);
-  renderCardDisplay('my-card-display', mySelectedCard); // ★ 即座にスロットに表示
+  renderCardDisplay('my-card-display', mySelectedCard);
   $('commentary').textContent = '✅ カードを出しました！相手を待っています...';
   update(ref(db), {
     [`rooms/${roomId}/${myRole}/selectedCard`]: cardId,
@@ -487,7 +496,6 @@ function checkTurnResult() {
   const { turnPhase, player1, player2 } = gameState;
   if (!player1 || !player2) return;
 
-  // ★ 両者準備完了 → カウントダウン開始
   if (player1.ready && player2.ready && turnPhase === 'select' && !countdownActive) {
     countdownActive = true;
     startCountdown(() => {
@@ -506,7 +514,7 @@ function checkTurnResult() {
 }
 
 // =========================================
-//  ★ カウントダウン
+//  カウントダウン
 // =========================================
 function startCountdown(callback) {
   const overlay = $('countdown-overlay');
@@ -518,7 +526,7 @@ function startCountdown(callback) {
 
   function tick() {
     numEl.classList.remove('count-anim');
-    void numEl.offsetWidth; // reflow でアニメーションリセット
+    void numEl.offsetWidth;
     numEl.textContent = steps[i];
     numEl.classList.add('count-anim');
     i++;
@@ -625,7 +633,7 @@ function showRoundResult() {
 }
 
 // =========================================
-//  ★ 終了画面（勝敗画像あり）
+//  終了画面
 // =========================================
 function showEndScreen() {
   if (!gameState) return;
@@ -728,15 +736,15 @@ $('btn-restart').addEventListener('click', async () => {
   cleanupListeners();
   myRole = roomId = gameState = mySelectedCard = null;
   pkState = { round: 0 };
-  countdownActive = false;                              // ★ リセット
-  $('countdown-overlay').classList.add('hidden');       // ★ リセット
+  countdownActive = false;
+  $('countdown-overlay').classList.add('hidden');
   $('pk-area').classList.add('hidden');
   $('pk-log').innerHTML = '';
   $('end-final-msg').classList.add('hidden');
   $('btn-restart').classList.add('hidden');
   $('btn-pk').classList.remove('hidden');
   $('btn-pk').disabled = false;
-  $('end-result-image').classList.add('hidden');        // ★ 勝敗画像リセット
+  $('end-result-image').classList.add('hidden');
   renderAccountScreen();
   showScreen('screen-account');
 });
