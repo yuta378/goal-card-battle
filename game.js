@@ -7,14 +7,14 @@ import {
 const CARDS = {
   SHOOT_1:  { id:'SHOOT_1',  type:'shoot',   level:1, icon:'⚽', name:'シュート', label:'Lv.1', image:'images/shoot_1.webp' },
   SHOOT_2:  { id:'SHOOT_2',  type:'shoot',   level:2, icon:'⚽', name:'シュート', label:'Lv.2', image:'images/shoot_2.webp' },
-  SHOOT_3:  { id:'SHOOT_3',  type:'shoot',   level:3, icon:'⚽', name:'シュート', label:'Lv.3', image:'images/shoot_3.png' },
-  SHOOT_4:  { id:'SHOOT_4',  type:'shoot',   level:4, icon:'⚽', name:'シュート', label:'Lv.4', image:'images/shoot_4.png' },
-  BLOCK_1:  { id:'BLOCK_1',  type:'block',   level:1, icon:'🛡️', name:'ブロック', label:'Lv.1', image:'images/block_1.png' },
-  BLOCK_2:  { id:'BLOCK_2',  type:'block',   level:2, icon:'🛡️', name:'ブロック', label:'Lv.2', image:'images/block_2.png' },
-  BLOCK_3:  { id:'BLOCK_3',  type:'block',   level:3, icon:'🛡️', name:'ブロック', label:'Lv.3', image:'images/block_3.png' },
-  BLOCK_4:  { id:'BLOCK_4',  type:'block',   level:4, icon:'🛡️', name:'ブロック', label:'Lv.4', image:'images/block_4.png' },
-  DRIBBLE_A:{ id:'DRIBBLE_A',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'', image:'images/dribble_a.png' },
-  DRIBBLE_B:{ id:'DRIBBLE_B',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'', image:'images/dribble_b.png' },
+  SHOOT_3:  { id:'SHOOT_3',  type:'shoot',   level:3, icon:'⚽', name:'シュート', label:'Lv.3', image:'images/shoot_3.webp' },
+  SHOOT_4:  { id:'SHOOT_4',  type:'shoot',   level:4, icon:'⚽', name:'シュート', label:'Lv.4', image:'images/shoot_4.webp' },
+  BLOCK_1:  { id:'BLOCK_1',  type:'block',   level:1, icon:'🛡️', name:'ブロック', label:'Lv.1', image:'images/block_1.webp' },
+  BLOCK_2:  { id:'BLOCK_2',  type:'block',   level:2, icon:'🛡️', name:'ブロック', label:'Lv.2', image:'images/block_2.webp' },
+  BLOCK_3:  { id:'BLOCK_3',  type:'block',   level:3, icon:'🛡️', name:'ブロック', label:'Lv.3', image:'images/block_3.webp' },
+  BLOCK_4:  { id:'BLOCK_4',  type:'block',   level:4, icon:'🛡️', name:'ブロック', label:'Lv.4', image:'images/block_4.webp' },
+  DRIBBLE_A:{ id:'DRIBBLE_A',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'', image:'images/dribble_a.webp' },
+  DRIBBLE_B:{ id:'DRIBBLE_B',type:'dribble', level:null, icon:'🌀', name:'ドリブル', label:'', image:'images/dribble_b.webp' },
 };
 const INITIAL_DECK = Object.keys(CARDS);
 const AVATARS = ['⚽','🦁','🐯','🔥','⭐','🌀','🎯','🏆','🦊','🛡️'];
@@ -37,8 +37,8 @@ function preloadAllImages() {
   const urls = [
     ...Object.values(CARDS).map(c => c.image),
     'images/background.webp',
-    'images/win.png',
-    'images/lose.png',
+    'images/win.webp',
+    'images/lose.webp',
   ].filter(Boolean);
   urls.forEach(url => {
     const img = new Image();
@@ -648,13 +648,13 @@ function showEndScreen() {
   $('end-result-image').classList.add('hidden');
 
   if (myScore > oppScore) {
-    $('end-result-img').src = 'images/win.png';
+    $('end-result-img').src = 'images/win.webp';
     $('end-result-image').classList.remove('hidden');
     $('end-icon').textContent  = '🏆';
     $('end-title').textContent = 'あなたの勝利！';
     showFinalMsg('🎊 おめでとう！完璧な試合でした！', 'win');
   } else if (myScore < oppScore) {
-    $('end-result-img').src = 'images/lose.png';
+    $('end-result-img').src = 'images/lose.webp';
     $('end-result-image').classList.remove('hidden');
     $('end-icon').textContent  = '😢';
     $('end-title').textContent = '惜しくも敗北...';
