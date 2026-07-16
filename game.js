@@ -50,35 +50,49 @@ preloadAllImages();
 // =========================================
 //  アカウント管理
 // =========================================
-function loadAccounts() {
-  try {
-    const stored = localStorage.getItem('gkb_accounts');
-    if (stored) return JSON.parse(stored);
-  } catch(e) {}
-  const defaults = Array.from({ length: 10 }, (_, i) => ({
-    id: i + 1,
-    name: `プレイヤー${i + 1}`,
-    avatar: AVATARS[i],
-  }));
-  localStorage.setItem('gkb_accounts', JSON.stringify(defaults));
-  return defaults;
+// =========================================
+//  アカウント管理（Firebase版）
+// =========================================
+let cachedAccounts = [];
+
+async function initAccounts() {
+  const snap = await get(ref(db, 'accounts'));
+  if (!snap.exists()) {
+    // 初回のみ：デフォルトデータをFirebaseに保存
+    const updates = {};
+    Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1,
+      name: `プレイヤー${i + 1}`,
+      avatar: AVATARS[i],
+    })).forEach(acc => {
+      updates[`accounts/${acc.id}`] = acc;
+    });
+    await update(ref(db), updates);
+  }
 }
-function persistAccounts(accounts) {
-  localStorage.setItem('gkb_accounts', JSON.stringify(accounts));
+
+async function updateAccountName(id, newName) {
+  await update(ref(db, `accounts/${id}`), { name: newName });
 }
-function updateAccountName(id, newName) {
-  const accounts = loadAccounts();
-  const target = accounts.find(a => a.id === id);
-  if (target) { target.name = newName; persistAccounts(accounts); }
+
+function listenAccounts() {
+  const accRef = ref(db, 'accounts');
+  onValue(accRef, snap => {
+    if (!snap.exists()) return;
+    cachedAccounts = Object.values(snap.val())
+      .sort((a, b) => a.id - b.id);
+    renderAccountScreen();
+  });
 }
 
 // =========================================
 //  アカウント画面
 // =========================================
+// ✅ 変更後
 function renderAccountScreen() {
   const grid = $('account-grid');
   grid.innerHTML = '';
-  loadAccounts().forEach(account => {
+  cachedAccounts.forEach(account => {
     const card = createAccountCard(account);
     grid.appendChild(card);
   });
@@ -125,18 +139,18 @@ function enterEditMode(card, account) {
     if (e.key === 'Enter')  actions.querySelector('.btn-save-acc').click();
     if (e.key === 'Escape') actions.querySelector('.btn-cancel-acc').click();
   });
-  actions.addEventListener('click', e => {
-    e.stopPropagation();
-    if (e.target.classList.contains('btn-save-acc')) {
-      const val = input.value.trim() || account.name;
-      account.name = val;
-      updateAccountName(account.id, val);
-      renderAccountScreen();
-    }
-    if (e.target.classList.contains('btn-cancel-acc')) {
-      renderAccountScreen();
-    }
-  });
+actions.addEventListener('click', async e => {
+  e.stopPropagation();
+  if (e.target.classList.contains('btn-save-acc')) {
+    const val = input.value.trim() || account.name;
+    account.name = val;
+    await updateAccountName(account.id, val);
+    // onValue リスナーが自動で再描画するので不要
+  }
+  if (e.target.classList.contains('btn-cancel-acc')) {
+    renderAccountScreen();
+  }
+});
 }
 function onSelectAccount(account) {
   selectedAccount = account;
@@ -752,5 +766,10 @@ $('btn-restart').addEventListener('click', async () => {
 // =========================================
 //  起動
 // =========================================
-renderAccountScreen();
-showScreen('screen-account');
+// ✅ 変更後
+async function initApp() {
+  await initAccounts();   // Firebaseにデータがなければ初期化
+  listenAccounts();       // リアルタイム監視スタート
+  showScreen('screen-account');
+}
+initApp();
