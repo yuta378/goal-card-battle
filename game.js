@@ -169,7 +169,7 @@ function onSelectAccount(account) {
 //  ユーティリティ
 // =========================================
 function genRoomId() {
-  return String(Math.floor(Math.random() * 90) + 10);
+  return String(Math.floor(Math.random() * 900) + 100);
 }
 // ===== 修正後 =====
 function judgeRound(c1id, c2id, yellowTarget) {
@@ -282,7 +282,7 @@ $('btn-join').addEventListener('click', async () => {
   if (!selectedAccount) return;
   const inputId = $('input-room-id').value.trim();
   if (!/^\d{2}$/.test(inputId)) {
-    showError('2桁の数字を入力してください（例：42）');
+    showError('3桁の数字を入力してください（例：427）');
     return;
   }
   const snap = await get(ref(db, `rooms/${inputId}`));
