@@ -171,9 +171,12 @@ function onSelectAccount(account) {
 function genRoomId() {
   return String(Math.floor(Math.random() * 90) + 10);
 }
+// ===== 修正後 =====
 function judgeRound(c1id, c2id, yellowTarget) {
   if (yellowTarget) return 'draw_yellow';
   const c1 = CARDS[c1id], c2 = CARDS[c2id];
+
+  // 同種カード同士
   if (c1.type === c2.type) {
     if (c1.type === 'shoot') {
       if (c1.level > c2.level) return 'player1';
@@ -181,7 +184,17 @@ function judgeRound(c1id, c2id, yellowTarget) {
     }
     return 'draw';
   }
-  const beats = { shoot:'dribble', dribble:'block', block:'shoot' };
+
+  // ✅ 案①追加：シュート vs ブロック（レベル差2以上でシュート勝利）
+  if (c1.type === 'shoot' && c2.type === 'block') {
+    return c1.level >= c2.level + 2 ? 'player1' : 'player2';
+  }
+  if (c1.type === 'block' && c2.type === 'shoot') {
+    return c2.level >= c1.level + 2 ? 'player2' : 'player1';
+  }
+
+  // それ以外はじゃんけん型（shoot>dribble、dribble>block）
+  const beats = { shoot: 'dribble', dribble: 'block' };
   if (beats[c1.type] === c2.type) return 'player1';
   if (beats[c2.type] === c1.type) return 'player2';
   return 'draw';
@@ -192,16 +205,21 @@ function getCommentary(result, myRole, c1id, c2id) {
   const c1 = CARDS[c1id], c2 = CARDS[c2id];
   const my  = myRole === 'player1' ? c1 : c2;
   const opp = myRole === 'player1' ? c2 : c1;
+ // ===== 修正後 =====
   if (result === myRole) {
     if (my.type==='shoot'   && opp.type==='dribble') return '⚽ ゴーール！ シュートが決まった！';
     if (my.type==='dribble' && opp.type==='block')   return '🌀 抜いた！チャンス！ あなたの得点！';
     if (my.type==='block'   && opp.type==='shoot')   return '🛡️ ナイスセーブ！ 守り切った！';
+    // ✅ 追加：シュートがブロックを突破した場合
+    if (my.type==='shoot'   && opp.type==='block')   return `⚽ Lv.${my.level}シュートがブロックを突破！ゴール！`;
     if (my.type==='shoot') return `⚽ シュート(${my.level}) が勝った！ゴール！`;
     return `${my.icon} あなたの勝ち！`;
   } else {
     if (opp.type==='shoot'   && my.type==='dribble') return '⚽ 相手ゴーール！ 止められなかった！';
     if (opp.type==='dribble' && my.type==='block')   return '🌀 かわされた！ 相手の得点！';
     if (opp.type==='block'   && my.type==='shoot')   return '🛡️ 相手ナイスセーブ！ 止められた！';
+    // ✅ 追加：相手シュートがブロックを突破した場合
+    if (opp.type==='shoot'   && my.type==='block')   return `⚽ 相手Lv.${opp.level}シュートに突破された！`;
     if (opp.type==='shoot') return `⚽ 相手シュート(${opp.level}) が決まった！`;
     return `${opp.icon} 相手の勝ち！`;
   }
