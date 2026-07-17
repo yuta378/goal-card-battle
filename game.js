@@ -621,7 +621,7 @@ async function processRound() {
       });
       mySelectedCard = null;
     }
-  }, 3000);
+  }, 4000);
 }
 
 // =========================================
@@ -661,7 +661,7 @@ function showRoundResult() {
     `${gameState.scores[myRole]||0} - ${gameState.scores[oppRole]||0}`;
   const modal = $('result-modal');
   modal.classList.remove('hidden');
-  setTimeout(() => modal.classList.add('hidden'), 2800);
+  setTimeout(() => modal.classList.add('hidden'), 3800);
 }
 
 // =========================================
