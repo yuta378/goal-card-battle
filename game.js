@@ -281,7 +281,7 @@ $('btn-create').addEventListener('click', async () => {
 $('btn-join').addEventListener('click', async () => {
   if (!selectedAccount) return;
   const inputId = $('input-room-id').value.trim();
-  if (!/^\d{2}$/.test(inputId)) {
+  if (!/^\d{3}$/.test(inputId)) {
     showError('3桁の数字を入力してください（例：427）');
     return;
   }
