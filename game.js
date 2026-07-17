@@ -319,6 +319,7 @@ function startGame() {
   showScreen('screen-game');
   $('option-area').classList.add('hidden');
   setupDropZone();
+  setupStampListener();
   const gameRef = ref(db, `rooms/${roomId}`);
   const unsub = onValue(gameRef, snap => {
     if (!snap.exists()) return;
@@ -791,3 +792,58 @@ async function initApp() {
   showScreen('screen-account');
 }
 initApp();
+// =========================================
+//  スタンプ機能
+// =========================================
+const STAMPS = [
+  { id: 'nice',   image: 'images/stamps/stamp_nice.webp',   label: 'ナイス！'  },
+  { id: 'fire',   image: 'images/stamps/stamp_fire.webp',   label: '燃えてる！'},
+  { id: 'cry',    image: 'images/stamps/stamp_cry.webp',    label: 'くやしい！'},
+  { id: 'laugh',  image: 'images/stamps/stamp_laugh.webp',  label: 'わらい'    },
+  { id: 'goal',   image: 'images/stamps/stamp_goal.webp',   label: 'ゴール！'  },
+  { id: 'strong', image: 'images/stamps/stamp_strong.webp', label: '強い！'    },
+];
+
+function setupStampListener() {
+  const stampRef = ref(db, `rooms/${roomId}/stamp`);
+  const unsub = onValue(stampRef, snap => {
+    if (!snap.exists()) return;
+    const { from, image } = snap.val();
+    // 相手が送ったスタンプだけ表示
+    if (from !== myRole) showStampAnimation(image);
+  });
+  unsubscribers.push(() => off(stampRef));
+}
+
+async function sendStamp(stampId) {
+  const stamp = STAMPS.find(s => s.id === stampId);
+  if (!stamp) return;
+  await update(ref(db), {
+    [`rooms/${roomId}/stamp`]: {
+      from:      myRole,
+      image:     stamp.image,
+      timestamp: Date.now(),
+    }
+  });
+}
+
+function showStampAnimation(imagePath) {
+  const el = document.createElement('div');
+  el.className = 'stamp-popup';
+  el.innerHTML = `<img src="${imagePath}" alt="スタンプ" class="stamp-img" />`;
+  document.querySelector('.game-layout').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// スタンプパネルの開閉
+$('btn-stamp-toggle').addEventListener('click', () => {
+  $('stamp-panel').classList.toggle('hidden');
+});
+
+// 各スタンプボタンのクリック
+document.querySelectorAll('.stamp-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    sendStamp(btn.dataset.stampId);
+    $('stamp-panel').classList.add('hidden'); // 送信後パネルを閉じる
+  });
+});
