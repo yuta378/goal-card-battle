@@ -796,8 +796,8 @@ initApp();
 //  スタンプ機能
 // =========================================
 const STAMPS = [
-  { id: '1',   image: 'images/stamp_nice.webp',   label: '1'  },
-  { id: '2',   image: 'images/stamp_fire.webp',   label: '2'},
+  { id: '1',   image: 'images/stamp_1.webp',   label: '1'  },
+  { id: '2',   image: 'images/stamp_2.webp',   label: '2'},
 ];
 
 function setupStampListener() {
