@@ -796,12 +796,8 @@ initApp();
 //  スタンプ機能
 // =========================================
 const STAMPS = [
-  { id: 'nice',   image: 'images/stamps/stamp_nice.webp',   label: 'ナイス！'  },
-  { id: 'fire',   image: 'images/stamps/stamp_fire.webp',   label: '燃えてる！'},
-  { id: 'cry',    image: 'images/stamps/stamp_cry.webp',    label: 'くやしい！'},
-  { id: 'laugh',  image: 'images/stamps/stamp_laugh.webp',  label: 'わらい'    },
-  { id: 'goal',   image: 'images/stamps/stamp_goal.webp',   label: 'ゴール！'  },
-  { id: 'strong', image: 'images/stamps/stamp_strong.webp', label: '強い！'    },
+  { id: '1',   image: 'images/stamps/stamp_nice.webp',   label: '1'  },
+  { id: '2',   image: 'images/stamps/stamp_fire.webp',   label: '2'},
 ];
 
 function setupStampListener() {
