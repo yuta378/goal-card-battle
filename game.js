@@ -28,6 +28,8 @@ let mySelectedCard  = null;
 let unsubscribers   = [];
 let pkState         = { round: 0 };
 let countdownActive = false;
+let isVsComputer    = false; // ✅ CPU対戦フラグ追加
+
 const $ = id => document.getElementById(id);
 
 // =========================================
@@ -48,17 +50,12 @@ function preloadAllImages() {
 preloadAllImages();
 
 // =========================================
-//  アカウント管理
-// =========================================
-// =========================================
 //  アカウント管理（Firebase版）
 // =========================================
 let cachedAccounts = [];
-
 async function initAccounts() {
   const snap = await get(ref(db, 'accounts'));
   if (!snap.exists()) {
-    // 初回のみ：デフォルトデータをFirebaseに保存
     const updates = {};
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
@@ -70,11 +67,9 @@ async function initAccounts() {
     await update(ref(db), updates);
   }
 }
-
 async function updateAccountName(id, newName) {
   await update(ref(db, `accounts/${id}`), { name: newName });
 }
-
 function listenAccounts() {
   const accRef = ref(db, 'accounts');
   onValue(accRef, snap => {
@@ -88,7 +83,6 @@ function listenAccounts() {
 // =========================================
 //  アカウント画面
 // =========================================
-// ✅ 変更後
 function renderAccountScreen() {
   const grid = $('account-grid');
   grid.innerHTML = '';
@@ -139,18 +133,17 @@ function enterEditMode(card, account) {
     if (e.key === 'Enter')  actions.querySelector('.btn-save-acc').click();
     if (e.key === 'Escape') actions.querySelector('.btn-cancel-acc').click();
   });
-actions.addEventListener('click', async e => {
-  e.stopPropagation();
-  if (e.target.classList.contains('btn-save-acc')) {
-    const val = input.value.trim() || account.name;
-    account.name = val;
-    await updateAccountName(account.id, val);
-    // onValue リスナーが自動で再描画するので不要
-  }
-  if (e.target.classList.contains('btn-cancel-acc')) {
-    renderAccountScreen();
-  }
-});
+  actions.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (e.target.classList.contains('btn-save-acc')) {
+      const val = input.value.trim() || account.name;
+      account.name = val;
+      await updateAccountName(account.id, val);
+    }
+    if (e.target.classList.contains('btn-cancel-acc')) {
+      renderAccountScreen();
+    }
+  });
 }
 function onSelectAccount(account) {
   selectedAccount = account;
@@ -158,7 +151,8 @@ function onSelectAccount(account) {
     <span class="banner-avatar">${account.avatar}</span>
     <span class="banner-name">${account.name}</span>
   `;
-  $('btn-create').disabled = false;
+  $('btn-create').disabled  = false;
+  $('btn-vs-cpu').disabled  = false; // ✅ CPU対戦ボタンも有効化
   $('room-info').classList.add('hidden');
   $('lobby-error').classList.add('hidden');
   $('input-room-id').value = '';
@@ -171,12 +165,9 @@ function onSelectAccount(account) {
 function genRoomId() {
   return String(Math.floor(Math.random() * 900) + 100);
 }
-// ===== 修正後 =====
 function judgeRound(c1id, c2id, yellowTarget) {
   if (yellowTarget) return 'draw_yellow';
   const c1 = CARDS[c1id], c2 = CARDS[c2id];
-
-  // 同種カード同士
   if (c1.type === c2.type) {
     if (c1.type === 'shoot') {
       if (c1.level > c2.level) return 'player1';
@@ -184,16 +175,12 @@ function judgeRound(c1id, c2id, yellowTarget) {
     }
     return 'draw';
   }
-
-  // ✅ 案①追加：シュート vs ブロック（レベル差2以上でシュート勝利）
   if (c1.type === 'shoot' && c2.type === 'block') {
     return c1.level >= c2.level + 2 ? 'player1' : 'player2';
   }
   if (c1.type === 'block' && c2.type === 'shoot') {
     return c2.level >= c1.level + 2 ? 'player2' : 'player1';
   }
-
-  // それ以外はじゃんけん型（shoot>dribble、dribble>block）
   const beats = { shoot: 'dribble', dribble: 'block' };
   if (beats[c1.type] === c2.type) return 'player1';
   if (beats[c2.type] === c1.type) return 'player2';
@@ -205,12 +192,10 @@ function getCommentary(result, myRole, c1id, c2id) {
   const c1 = CARDS[c1id], c2 = CARDS[c2id];
   const my  = myRole === 'player1' ? c1 : c2;
   const opp = myRole === 'player1' ? c2 : c1;
- // ===== 修正後 =====
   if (result === myRole) {
     if (my.type==='shoot'   && opp.type==='dribble') return '⚽ ゴーール！ シュートが決まった！';
     if (my.type==='dribble' && opp.type==='block')   return '🌀 抜いた！チャンス！ あなたの得点！';
     if (my.type==='block'   && opp.type==='shoot')   return '🛡️ ナイスセーブ！ 守り切った！';
-    // ✅ 追加：シュートがブロックを突破した場合
     if (my.type==='shoot'   && opp.type==='block')   return `⚽ Lv.${my.level}シュートがブロックを突破！ゴール！`;
     if (my.type==='shoot') return `⚽ シュート(${my.level}) が勝った！ゴール！`;
     return `${my.icon} あなたの勝ち！`;
@@ -218,7 +203,6 @@ function getCommentary(result, myRole, c1id, c2id) {
     if (opp.type==='shoot'   && my.type==='dribble') return '⚽ 相手ゴーール！ 止められなかった！';
     if (opp.type==='dribble' && my.type==='block')   return '🌀 かわされた！ 相手の得点！';
     if (opp.type==='block'   && my.type==='shoot')   return '🛡️ 相手ナイスセーブ！ 止められた！';
-    // ✅ 追加：相手シュートがブロックを突破した場合
     if (opp.type==='shoot'   && my.type==='block')   return `⚽ 相手Lv.${opp.level}シュートに突破された！`;
     if (opp.type==='shoot') return `⚽ 相手シュート(${opp.level}) が決まった！`;
     return `${opp.icon} 相手の勝ち！`;
@@ -241,10 +225,11 @@ function cleanupListeners() {
 //  ロビー
 // =========================================
 $('btn-back-account').addEventListener('click', async () => {
-  if (roomId && myRole === 'player1') {
+  if (roomId && myRole === 'player1' && !isVsComputer) { // ✅ CPU時はFirebase削除しない
     try { await remove(ref(db, `rooms/${roomId}`)); } catch(e){}
   }
   cleanupListeners();
+  isVsComputer = false; // ✅ リセット
   myRole = roomId = gameState = mySelectedCard = null;
   showScreen('screen-account');
 });
@@ -303,6 +288,33 @@ $('btn-join').addEventListener('click', async () => {
   startGame();
 });
 
+// ✅ CPU対戦ボタン追加
+$('btn-vs-cpu').addEventListener('click', () => {
+  if (!selectedAccount) return;
+  isVsComputer = true;
+  myRole = 'player1';
+  roomId = 'cpu-room';
+  gameState = {
+    status: 'playing',
+    player1: {
+      hand: [...INITIAL_DECK], score: 0, ready: false,
+      yellowUsed: false, redUsed: false,
+      name: selectedAccount.name, avatar: selectedAccount.avatar,
+      discard: [],
+    },
+    player2: {
+      hand: [...INITIAL_DECK], score: 0, ready: false,
+      yellowUsed: false, redUsed: false,
+      name: 'CPU', avatar: '🤖',
+      discard: [],
+    },
+    turn: 1,
+    turnPhase: 'select',
+    scores: { player1: 0, player2: 0 },
+  };
+  startGame();
+});
+
 function showError(msg) {
   const el = $('lobby-error');
   el.textContent = msg;
@@ -319,7 +331,14 @@ function startGame() {
   showScreen('screen-game');
   $('option-area').classList.add('hidden');
   setupDropZone();
-  setupStampListener();
+
+  // ✅ CPU対戦はFirebaseを使わない
+  if (isVsComputer) {
+    renderGame();
+    return;
+  }
+
+  setupStampListener(); // オンライン対戦のみスタンプON
   const gameRef = ref(db, `rooms/${roomId}`);
   const unsub = onValue(gameRef, snap => {
     if (!snap.exists()) return;
@@ -365,7 +384,6 @@ function showCardZoom(cardId) {
   $('zoom-card-img').alt = `${card.name} ${card.label}`;
   $('card-zoom-modal').classList.remove('hidden');
 }
-
 $('zoom-backdrop').addEventListener('click', (e) => {
   if (e.target === $('zoom-backdrop')) $('card-zoom-modal').classList.add('hidden');
 });
@@ -385,31 +403,24 @@ function renderGame() {
   const me  = gameState[myRole];
   const opp = gameState[oppRole];
   if (!me || !opp) return;
-
   $('score-me').textContent  = gameState.scores[myRole]  || 0;
   $('score-opp').textContent = gameState.scores[oppRole] || 0;
   $('turn-num').textContent  = gameState.turn || 1;
-
   const myName  = me.name  || 'あなた';
   const oppName = opp.name || '相手';
   $('my-name-label').textContent  = myName;
   $('opp-name-label').textContent = oppName;
   $('my-slot-label').textContent  = myName;
   $('opp-slot-label').textContent = oppName;
-
   renderMyHand(me.hand   || []);
   renderOppHand(opp.hand || []);
   $('hand-count').textContent = `(${(me.hand||[]).length}枚)`;
-
   if (gameState.turnPhase === 'select') {
     $('opp-card-display').className = 'card card-back';
     $('opp-card-display').innerHTML = '?';
-
-    // ★ 新ターン開始時（ready:false）にカードをリセット
     if (!gameState[myRole]?.ready) {
       mySelectedCard = null;
     }
-
     if (mySelectedCard) {
       renderCardDisplay('my-card-display', mySelectedCard);
       $('commentary').textContent = '✅ カードを出しました！相手を待っています...';
@@ -434,7 +445,6 @@ function renderMyHand(hand) {
     el.className = `hand-card ${card.type} img-card`;
     if (cardId === mySelectedCard)        el.classList.add('selected');
     if (gameState.turnPhase !== 'select') el.classList.add('disabled');
-
     if (card.image) {
       el.innerHTML = `
         <img src="${card.image}" alt="${card.name}"
@@ -447,10 +457,8 @@ function renderMyHand(hand) {
         <div class="hc-level">${card.label}</div>
       `;
     }
-
     el.draggable = true;
     let isDragging = false;
-
     el.addEventListener('dragstart', (e) => {
       if (gameState.turnPhase !== 'select') { e.preventDefault(); return; }
       if (gameState[myRole]?.ready)         { e.preventDefault(); return; }
@@ -459,21 +467,17 @@ function renderMyHand(hand) {
       e.dataTransfer.effectAllowed = 'move';
       el.classList.add('dragging');
     });
-
     el.addEventListener('dragend', () => {
       el.classList.remove('dragging');
       setTimeout(() => { isDragging = false; }, 50);
     });
-
     el.addEventListener('click', () => {
       if (isDragging) return;
       showCardZoom(cardId);
     });
-
     container.appendChild(el);
   });
 }
-
 function renderOppHand(hand) {
   const container = $('opp-hand');
   container.innerHTML = '';
@@ -485,7 +489,6 @@ function renderOppHand(hand) {
     container.appendChild(el);
   });
 }
-
 function renderCardDisplay(slotId, cardId) {
   const card = CARDS[cardId];
   const slot = $(slotId);
@@ -515,6 +518,21 @@ function selectCard(cardId) {
   renderMyHand(me.hand);
   renderCardDisplay('my-card-display', mySelectedCard);
   $('commentary').textContent = '✅ カードを出しました！相手を待っています...';
+
+  // ✅ CPU対戦：ローカル更新 + CPU自動選択
+  if (isVsComputer) {
+    gameState.player1.selectedCard = cardId;
+    gameState.player1.ready = true;
+    setTimeout(() => {
+      const cpuCard = computerSelectCard();
+      gameState.player2.selectedCard = cpuCard;
+      gameState.player2.ready = true;
+      checkTurnResult(); // 両者揃ったので判定へ
+    }, 800);
+    return;
+  }
+
+  // オンライン対戦：Firebase更新
   update(ref(db), {
     [`rooms/${roomId}/${myRole}/selectedCard`]: cardId,
     [`rooms/${roomId}/${myRole}/ready`]:        true,
@@ -528,14 +546,12 @@ function checkTurnResult() {
   if (!gameState) return;
   const { turnPhase, player1, player2 } = gameState;
   if (!player1 || !player2) return;
-
   if (player1.ready && player2.ready && turnPhase === 'select' && !countdownActive) {
     countdownActive = true;
     startCountdown(() => {
       if (myRole === 'player1') processRound();
     });
   }
-
   if (turnPhase === 'reveal') {
     countdownActive = false;
     showRoundResult();
@@ -553,17 +569,14 @@ function startCountdown(callback) {
   const overlay = $('countdown-overlay');
   const numEl   = $('countdown-number');
   overlay.classList.remove('hidden');
-
   const steps = ['3', '2', '1', '⚡'];
   let i = 0;
-
   function tick() {
     numEl.classList.remove('count-anim');
     void numEl.offsetWidth;
     numEl.textContent = steps[i];
     numEl.classList.add('count-anim');
     i++;
-
     if (i < steps.length) {
       setTimeout(tick, 750);
     } else {
@@ -593,6 +606,39 @@ async function processRound() {
   const discard2 = [...(player2.discard||[]), c2];
   const nextTurn = (turn||1) + 1;
   const isEnd    = nextTurn > 10;
+
+  // ✅ CPU対戦：Firebaseを使わずローカル更新
+  if (isVsComputer) {
+    gameState.turnPhase       = 'reveal';
+    gameState.lastResult      = { c1, c2, result };
+    gameState.scores          = newScores;
+    gameState.player1.hand    = newHand1;
+    gameState.player2.hand    = newHand2;
+    gameState.player1.discard = discard1;
+    gameState.player2.discard = discard2;
+    gameState.yellowTarget    = null;
+    renderGame();
+    showRoundResult();
+    setTimeout(() => {
+      if (isEnd) {
+        gameState.turnPhase = 'end';
+        showEndScreen();
+      } else {
+        gameState.turn                 = nextTurn;
+        gameState.turnPhase            = 'select';
+        gameState.player1.ready        = false;
+        gameState.player2.ready        = false;
+        gameState.player1.selectedCard = null;
+        gameState.player2.selectedCard = null;
+        mySelectedCard  = null;
+        countdownActive = false; // ✅ 次のターンのカウントダウンのためリセット
+        renderGame();
+      }
+    }, 4000);
+    return;
+  }
+
+  // オンライン対戦：Firebase更新（既存処理）
   await update(ref(db), {
     [`rooms/${roomId}/turnPhase`]:       'reveal',
     [`rooms/${roomId}/lastResult`]:      { c1, c2, result },
@@ -679,7 +725,6 @@ function showEndScreen() {
   $('final-score-opp').textContent = oppScore;
   $('btn-restart').classList.remove('hidden');
   $('end-result-image').classList.add('hidden');
-
   if (myScore > oppScore) {
     $('end-result-img').src = 'images/win.webp';
     $('end-result-image').classList.remove('hidden');
@@ -698,7 +743,6 @@ function showEndScreen() {
     startPK();
   }
 }
-
 function showFinalMsg(msg, cls) {
   const el = $('end-final-msg');
   el.textContent = msg;
@@ -765,7 +809,10 @@ function addPKLog(text) {
 //  リスタート
 // =========================================
 $('btn-restart').addEventListener('click', async () => {
-  try { await remove(ref(db, `rooms/${roomId}`)); } catch(e){}
+  if (!isVsComputer) { // ✅ CPU対戦時はFirebase削除しない
+    try { await remove(ref(db, `rooms/${roomId}`)); } catch(e){}
+  }
+  isVsComputer = false; // ✅ リセット
   cleanupListeners();
   myRole = roomId = gameState = mySelectedCard = null;
   pkState = { round: 0 };
@@ -785,32 +832,29 @@ $('btn-restart').addEventListener('click', async () => {
 // =========================================
 //  起動
 // =========================================
-// ✅ 変更後
 async function initApp() {
-  await initAccounts();   // Firebaseにデータがなければ初期化
-  listenAccounts();       // リアルタイム監視スタート
+  await initAccounts();
+  listenAccounts();
   showScreen('screen-account');
 }
 initApp();
+
 // =========================================
 //  スタンプ機能
 // =========================================
 const STAMPS = [
-  { id: '1',   image: 'images/stamp_1.webp',   label: '1'  },
-  { id: '2',   image: 'images/stamp_2.webp',   label: '2'},
+  { id: '1', image: 'images/stamps/stamp_1.webp', label: '1' },
+  { id: '2', image: 'images/stamps/stamp_2.webp', label: '2' },
 ];
-
 function setupStampListener() {
   const stampRef = ref(db, `rooms/${roomId}/stamp`);
   const unsub = onValue(stampRef, snap => {
     if (!snap.exists()) return;
     const { from, image } = snap.val();
-    // 相手が送ったスタンプだけ表示
     if (from !== myRole) showStampAnimation(image);
   });
   unsubscribers.push(() => off(stampRef));
 }
-
 async function sendStamp(stampId) {
   const stamp = STAMPS.find(s => s.id === stampId);
   if (!stamp) return;
@@ -822,7 +866,6 @@ async function sendStamp(stampId) {
     }
   });
 }
-
 function showStampAnimation(imagePath) {
   const el = document.createElement('div');
   el.className = 'stamp-popup';
@@ -830,16 +873,21 @@ function showStampAnimation(imagePath) {
   document.querySelector('.game-layout').appendChild(el);
   setTimeout(() => el.remove(), 3000);
 }
-
-// スタンプパネルの開閉
 $('btn-stamp-toggle').addEventListener('click', () => {
   $('stamp-panel').classList.toggle('hidden');
 });
-
-// 各スタンプボタンのクリック
 document.querySelectorAll('.stamp-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     sendStamp(btn.dataset.stampId);
-    $('stamp-panel').classList.add('hidden'); // 送信後パネルを閉じる
+    $('stamp-panel').classList.add('hidden');
   });
 });
+
+// =========================================
+//  CPU AIロジック ✅ 追加
+// =========================================
+function computerSelectCard() {
+  const hand = gameState.player2.hand;
+  const randomIndex = Math.floor(Math.random() * hand.length);
+  return hand[randomIndex];
+}
