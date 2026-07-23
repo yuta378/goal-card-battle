@@ -736,7 +736,7 @@ function showEndScreen() {
     $('end-result-image').classList.remove('hidden');
     $('end-icon').textContent  = '😢';
     $('end-title').textContent = '惜しくも敗北...';
-    showFinalMsg('次は勝てる！リベンジしよう！', 'lose');
+    showFinalMsg('なんで負けたか明日までに考えといてください！', 'lose');
   } else {
     $('end-icon').textContent  = '⚽';
     $('end-title').textContent = '同点！PK戦へ！';
